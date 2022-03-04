@@ -1,11 +1,15 @@
 # Biomes revisited:
 
+Inputs to the calculation:
+* 
+
 ## Terrestrial biomes:
 * Rainforest/Jungle/Evergreen Broadleaf Forest
 * Grassland
 * Borial Forest/Evergreen Needleleaf Forest
 * Temperate Forest/Seasonal Broadleaf Forest
 * Shrubland/Savannah
+* Wetlands (includes estuaries, mangroves, and swamps)
 * Desert
 
 ## Aquatic biomes:
