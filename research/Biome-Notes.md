@@ -4,16 +4,16 @@ Inputs to the calculation:
 * 
 
 ## Terrestrial biomes:
-* Rainforest/Jungle/Evergreen Broadleaf Forest
-* Grassland
-* Borial Forest/Evergreen Needleleaf Forest
-* Temperate Forest/Seasonal Broadleaf Forest
-* Shrubland/Savannah
 * Wetlands (includes estuaries, mangroves, and swamps)
+* Rainforest/Jungle/Evergreen Broadleaf Forest
+* Temperate Forest/Seasonal Broadleaf Forest
+* Borial Forest/Evergreen Needleleaf Forest
+* Grassland
+* Shrubland/Savannah
 * Desert
 
 ## Aquatic biomes:
-* Reef/Warm Euphotic Marine
+* Tropical Reef/Warm Euphotic Marine
 * Sea Forest (seagrass and kelp)/Temprate to Cold Euphotic Marine
 * Seasonal Ice/Sponge Garden
 * Deep Ocean
@@ -33,7 +33,7 @@ Inputs to the calculation:
 * Moonscape
 * Magma sea
 * Cryogen sea (liquid methane, nitrogen, etc)
-* Gas giant
+* Gas giant surface
 * Stellar surface
 * Event horizon
 
