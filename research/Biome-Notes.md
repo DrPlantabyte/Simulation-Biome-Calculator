@@ -1,29 +1,35 @@
 # Biomes revisited:
 
 Inputs to the calculation:
-* 
+* Body type (rocky planet, gas giant, star, etc)
+* Body mass
+* Surface barometric pressure
+* Altitude
+* Annual mean temperature
+* Annual temperature variation (std dev)
+* Annual rainfall total
+* Annual rainfall variation (std dev)
 
 ## Terrestrial biomes:
-* Wetlands (includes estuaries, mangroves, and swamps)
-* Rainforest/Jungle/Evergreen Broadleaf Forest
+* Swamp/Wetlands (includes estuaries, mangroves, and swamps)
+* Jungle/Rainforest/Evergreen Broadleaf Forest
 * Temperate Forest/Seasonal Broadleaf Forest
 * Borial Forest/Evergreen Needleleaf Forest
 * Grassland
-* Shrubland/Savannah
-* Desert
+* Shrubland/Savannah (normal deserts)
 
 ## Aquatic biomes:
 * Tropical Reef/Warm Euphotic Marine
 * Sea Forest (seagrass and kelp)/Temprate to Cold Euphotic Marine
-* Seasonal Ice/Sponge Garden
+* Rocky Shallows/Seasonal Ice/Sponge Garden
 * Deep Ocean
 * Surface Water/Rivers and Lakes
 
 ## Abiotic & microbiotic biomes:
-* Barren (extreme dry and cold)
-* Sand Sea (extreme dry and hot)
+* Barren (extreme dry and cold, rocky desert)
+* Sand Sea (extreme dry and hot, sandy desert)
 * Ice Sheet (wet and extreme cold)
-* Thermal Springs/Boiling Water (wet and extreme hot)
+* Boiling Sea/Thermal Springs (wet and extreme hot)
 
 ## Artificial biomes:
 * Farmland
@@ -31,11 +37,11 @@ Inputs to the calculation:
 
 ## Celestial biomes:
 * Moonscape
-* Magma sea
-* Cryogen sea (liquid methane, nitrogen, etc)
-* Gas giant surface
-* Stellar surface
-* Event horizon
+* Magma Sea
+* Cryogen Sea (liquid methane, nitrogen, etc)
+* Gas Giant
+* Stellar Surface
+* Event Horizon
 
 ## Fantasy/Sci-fi biomes:
 * Ruins

@@ -52,7 +52,16 @@ def download_MODIS_product(short_name, version, start_date, end_date, dest_dirpa
 	granule_client = GranuleApi.from_collection(collections[0], session=modis_session)
 	granules = granule_client.query(start_date=start_date, end_date=end_date)
 	print('Downloading %s to %s...' % (short_name, dest_dirpath))
-	GranuleHandler.download_from_granules(granules, modis_session, path='data')
+	for g in granules:
+		# print('links:')
+		# for L in g.links:
+		# 	print('\t',L.href)
+		filename = g.links[0].href[g.links[0].href.rfind('/')+1:]
+		print(filename)
+		# TODO: download, then down-sample at 0.05 deg (5.56km), then delete (to save space)
+		#GranuleHandler.download_from_granules(g, modis_session, path='data')
+
+	#GranuleHandler.download_from_granules(granules, modis_session, path='data')
 	print('...Download complete!')
 
 
