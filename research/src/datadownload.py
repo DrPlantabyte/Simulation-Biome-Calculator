@@ -1,10 +1,11 @@
 #!/usr/bin/python3.9
 
-import os, shutil, sys, re, requests, base64, urllib.parse, numpy, pandas
+import os, shutil, sys, re, requests, base64, urllib.parse, numpy, pandas, json
 from os import path
 from modis_tools.auth import ModisSession
 from modis_tools.resources import CollectionApi, GranuleApi
 from modis_tools.granule_handler import GranuleHandler
+from osgeo import gdal
 from numpy import ndarray
 from pandas import DataFrame
 
@@ -58,11 +59,23 @@ def download_MODIS_product(short_name, version, start_date, end_date, dest_dirpa
 		# 	print('\t',L.href)
 		filename = g.links[0].href[g.links[0].href.rfind('/')+1:]
 		print(filename)
+		filepath=path.join(dest_dirpath, filename)
+		GranuleHandler.download_from_granules(g, modis_session, path=dest_dirpath)
+		if not path.exists(filepath):
+			print('failed to download %s' % filename)
+			exit(1)
+		ds = gdal.Open(filepath)
+		print_modis_structure(ds)
 		# TODO: download, then down-sample at 0.05 deg (5.56km), then delete (to save space)
-		#GranuleHandler.download_from_granules(g, modis_session, path='data')
+		exit(1)
 
 	#GranuleHandler.download_from_granules(granules, modis_session, path='data')
 	print('...Download complete!')
+
+def print_modis_structure(dataset: gdal.Dataset):
+	metadata_dict = dict(dataset.GetMetadata_Dict())
+	metadata_dict['Subsets'] = dataset.GetSubDatasets()
+	print(dataset.GetDescription(), json.dumps(metadata_dict, indent="  "))
 
 
 def download_GPM_L3_product(short_name, version, year, month, dest_dirpath, username, password):
