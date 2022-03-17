@@ -15,8 +15,8 @@ Inputs to the calculation:
 * Jungle/Rainforest/Evergreen Broadleaf Forest
 * Temperate Forest/Seasonal Broadleaf Forest
 * Borial Forest/Evergreen Needleleaf Forest
-* Grassland
-* Shrubland/Savannah (normal deserts)
+* Grassland/Savannah
+* Desert/Shrubland (normal deserts)
 
 ## Aquatic biomes:
 * Tropical Reef/Warm Euphotic Marine
@@ -40,7 +40,8 @@ Inputs to the calculation:
 * Magma Sea
 * Cryogen Sea (liquid methane, nitrogen, etc)
 * Gas Giant
-* Stellar Surface
+* Stellar Surface (normal star)
+* Stellar Surface (neutron star)
 * Event Horizon
 
 ## Fantasy/Sci-fi biomes:

@@ -8,6 +8,7 @@ from modis_tools.granule_handler import GranuleHandler
 from osgeo import gdal
 from numpy import ndarray
 from pandas import DataFrame
+from matplotlib import pyplot
 
 def main():
 	print("Starting %s..." % sys.argv[0])
@@ -44,7 +45,14 @@ def download_landcover_for_year(year, http_session):
 	print('...Download complete!')
 
 
-def download_MODIS_product(short_name, version, start_date, end_date, dest_dirpath, username, password):
+def download_MODIS_product(short_name, version, start_date, end_date, dest_dirpath, username, password, subsample_shape=(900,1800)):
+	## NOTE: MODIS tile grid explained at https://modis-land.gsfc.nasa.gov/MODLAND_grid.html
+	earth_radius_m = 6371007.181
+	deg_per_m = 180 / (numpy.pi * earth_radius_m)
+	deg_per_500m = deg_per_m * 500
+	output_map: ndarray = numpy.ones(subsample_shape, dtype=numpy.float32) * numpy.nan
+	w=subsample_shape[1]
+	h=subsample_shape[0]
 	os.makedirs(dest_dirpath, exist_ok=True)
 	modis_session = ModisSession(username=username, password=password)
 	# Query the MODIS catalog for collections
@@ -53,19 +61,51 @@ def download_MODIS_product(short_name, version, start_date, end_date, dest_dirpa
 	granule_client = GranuleApi.from_collection(collections[0], session=modis_session)
 	granules = granule_client.query(start_date=start_date, end_date=end_date)
 	print('Downloading %s to %s...' % (short_name, dest_dirpath))
+	debug_skip = 9
 	for g in granules:
+		if(debug_skip:=debug_skip-1) != 0: continue
 		# print('links:')
 		# for L in g.links:
 		# 	print('\t',L.href)
 		filename = g.links[0].href[g.links[0].href.rfind('/')+1:]
 		print(filename)
 		filepath=path.join(dest_dirpath, filename)
-		GranuleHandler.download_from_granules(g, modis_session, path=dest_dirpath)
+		if not path.exists(filepath):
+			GranuleHandler.download_from_granules(g, modis_session, path=dest_dirpath)
 		if not path.exists(filepath):
 			print('failed to download %s' % filename)
 			exit(1)
-		ds = gdal.Open(filepath)
+		ds: gdal.Dataset = gdal.Open(filepath)
 		print_modis_structure(ds)
+		metadata: {} = ds.GetMetadata_Dict()
+		tile_ds: gdal.Dataset = gdal.Open(ds.GetSubDatasets()[0][0])
+		tile_meta: {} = tile_ds.GetMetadata_Dict()
+		print(json.dumps(tile_meta, indent='  '))
+		scale_factor = float(tile_meta['scale_factor'])
+		valid_range = [float(n) for n in tile_meta['valid_range'].split(', ')]
+		min_lon = float(tile_meta['WESTBOUNDINGCOORDINATE'])
+		min_lat = float(tile_meta['SOUTHBOUNDINGCOORDINATE'])
+		max_lon = float(tile_meta['EASTBOUNDINGCOORDINATE'])
+		max_lat = float(tile_meta['NORTHBOUNDINGCOORDINATE'])
+		tile_data: ndarray = tile_ds.ReadAsArray()
+		## mask and scale
+		tile_data = numpy.ma.array(tile_data, mask=numpy.logical_or(tile_data < valid_range[0], tile_data > valid_range[1])).astype(numpy.float32).filled(numpy.nan) * scale_factor
+		print('Data shape:',tile_data.shape)
+		print(tile_data[10][10])
+		print(tile_data[800][2300])
+		pyplot.imshow(tile_data, aspect='auto')
+		pyplot.show()
+		dest_bounds = (int(h*(min_lat/180)+0.5), int((w/2)+(w * (min_lon / 360))), int(h*(max_lat/180)+0.5), int((w/2)+(w * (max_lon / 360))))
+		for dest_y in range(dest_bounds[1],dest_bounds[3]+1):
+			dest_lat = 180*((dest_y/h)-0.5)
+			y =
+			for dest_x in range(dest_bounds[0],dest_bounds[2]+1):
+				dest_lon = 360*((dest_x/(w*numpy.cos(dest_lat*numpy.pi/180)))-0.5)
+				x =
+				output_map[dest_y][dest_x] = tile_data[y][x]
+				if not numpy.isnan(tile_data[y][x]): print('(%s,%s) -> (%s,%s)' % (x, y, dest_x, dest_y))
+		pyplot.imshow(output_map, aspect='auto')
+		pyplot.show()
 		# TODO: download, then down-sample at 0.05 deg (5.56km), then delete (to save space)
 		exit(1)
 
