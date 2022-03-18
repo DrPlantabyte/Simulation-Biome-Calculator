@@ -47,7 +47,7 @@ def main():
 		pyplot.imshow(all_gpp_map, aspect='auto')
 		pyplot.savefig('GPP_2015_%s.png' % count)
 		pyplot.clf()
-		
+
 	print("...Done!")
 
 def download_landcover_for_year(year, http_session):
@@ -97,9 +97,7 @@ def retrieve_MODIS_500m_product(short_name, version, subset_index, start_date, e
 	granule_client = GranuleApi.from_collection(collections[0], session=modis_session)
 	granules = granule_client.query(start_date=start_date, end_date=end_date)
 	print('Downloading %s from %s to %s to data directory %s...' % (short_name, start_date, end_date, dest_dirpath))
-	debug_skip = 10
 	for g in granules:
-		if(debug_skip := debug_skip-1) < 0: break
 		# print('links:')
 		# for L in g.links:
 		# 	print('\t',L.href)
