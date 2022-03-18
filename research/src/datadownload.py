@@ -113,9 +113,10 @@ def retrieve_MODIS_500m_product(short_name, version, subset_index, start_date, e
 		#print_modis_structure(ds)
 		tile_ds: gdal.Dataset = gdal.Open(ds.GetSubDatasets()[subset_index][0])
 		tile_meta: {} = tile_ds.GetMetadata_Dict()
-		json_fp = '%s.json' % filepath
-		with open(json_fp, 'w') as fout:
-			print('\t','writing meta data to', json_fp)
+		json_fp = '%s_%s_subset-%s.json' % (short_name, version, subset_index)
+		if not path.exists(json_fp):
+			with open(json_fp, 'w') as fout:
+				print('\t','writing meta data to', json_fp)
 			json.dump(tile_meta, fout, indent='  ')
 		scale_factor = float(tile_meta['scale_factor'])
 		valid_range = [float(n) for n in tile_meta['valid_range'].split(', ')]
