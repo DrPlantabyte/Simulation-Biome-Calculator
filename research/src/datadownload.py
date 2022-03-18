@@ -18,10 +18,7 @@ def main():
 	secrets = pandas.read_csv('../secrets/pw.csv')
 	username = secrets['username'][0] #input('Earth Data Username: ')
 	password = secrets['password'][0] #input('Earth Data Password: ')
-	modis_session = ModisSession(username=username, password=password)
-	collection_client = CollectionApi(session=modis_session)
-	collections = collection_client.query(short_name='MYD17A2H', version='006')
-	print('collections size:', len(collections))
+	
 	# GPP
 	count = 0
 	for doy in range(1,365, 8):
