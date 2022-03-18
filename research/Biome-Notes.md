@@ -5,6 +5,7 @@ Inputs to the calculation:
 * Body mass
 * Surface barometric pressure
 * Altitude
+* Annual mean solar flux
 * Annual mean temperature
 * Annual temperature variation (std dev)
 * Annual rainfall total

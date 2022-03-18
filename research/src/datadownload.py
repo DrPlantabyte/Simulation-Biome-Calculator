@@ -1,6 +1,6 @@
 #!/usr/bin/python3.9
 
-import os, shutil, sys, re, requests, base64, urllib.parse, numpy, pandas, json
+import os, shutil, sys, re, requests, base64, urllib.parse, numpy, pandas, json, pickle
 from os import path
 from modis_tools.auth import ModisSession
 from modis_tools.resources import CollectionApi, GranuleApi
@@ -9,6 +9,7 @@ from osgeo import gdal
 from numpy import ndarray
 from pandas import DataFrame
 from matplotlib import pyplot
+from datetime import datetime, timedelta
 
 def main():
 	print("Starting %s..." % sys.argv[0])
@@ -21,13 +22,32 @@ def main():
 	collection_client = CollectionApi(session=modis_session)
 	collections = collection_client.query(short_name='MYD17A2H', version='006')
 	print('collections size:', len(collections))
-	download_MODIS_product('MYD17A2H', '006', '2015-01-01', '2015-01-08', data_dir, username, password)
-	# for year in range(2015, 2018):
-	# 	for month in range(1, 13):
-	# 		download_GPM_L3_product('GPM_3IMERGM', '06', year, month, data_dir, username, password)
-	# 	download_MODIS_product('MOD21C3', '061', '%s-01-01' % year, '%s-12-31' % year, data_dir, username, password)
-	# 	download_MODIS_product('MCD12C1', '006', '%s-01-01' % year, '%s-12-31' % year, data_dir, username, password)
-	#
+	# GPP
+	count = 0
+	for doy in range(1,365, 8):
+		count += 1
+		dstart = datetime(2015,1,1) + timedelta(days=doy)
+		dend = datetime(2015,1,1) + timedelta(days=doy+8)
+		aq_gpp_map = retrieve_MODIS_500m_product(
+			'MYD17A2H', '006', 0, dstart.isoformat()[:10], dend.isoformat()[:10], data_dir, username, password,
+			downsample=10, sample_strat='mean', delete_files=True, pickle_file=path.join(data_dir,'GPP-aqua_2015_%s.pickle' % count)
+		)
+		pyplot.imshow(aq_gpp_map, aspect='auto')
+		pyplot.savefig('GPP-aqua_2015_%s.png' % count)
+		pyplot.clf()
+		terra_gpp_map = retrieve_MODIS_500m_product(
+			'MOD17A2H', '006', 0, dstart.isoformat()[:10], dend.isoformat()[:10], data_dir, username, password,
+			downsample=5, sample_strat='mean', delete_files=True, pickle_file=path.join(data_dir,'GPP-terra_2015_%s.pickle' % count)
+		)
+		pyplot.imshow(terra_gpp_map, aspect='auto')
+		pyplot.savefig('GPP-terra_2015_%s.png' % count)
+		pyplot.clf()
+		all_gpp_map = numpy.nanmean(numpy.stack([aq_gpp_map, terra_gpp_map]), axis=0)
+		with open(path.join(data_dir,'GPP_2015_%s.pickle' % count), 'wb') as fout: pickle.dump(all_gpp_map, fout);
+		pyplot.imshow(all_gpp_map, aspect='auto')
+		pyplot.savefig('GPP_2015_%s.png' % count)
+		pyplot.clf()
+		
 	print("...Done!")
 
 def download_landcover_for_year(year, http_session):
@@ -45,14 +65,30 @@ def download_landcover_for_year(year, http_session):
 	print('...Download complete!')
 
 
-def download_MODIS_product(short_name, version, start_date, end_date, dest_dirpath, username, password, subsample_shape=(900,1800)):
+def retrieve_MODIS_500m_product(short_name, version, subset_index, start_date, end_date, dest_dirpath, username, password,
+								downsample: int = 10, sample_strat='mean', delete_files=False,
+								pickle_file=None):
 	## NOTE: MODIS tile grid explained at https://modis-land.gsfc.nasa.gov/MODLAND_grid.html
-	earth_radius_m = 6371007.181
-	deg_per_m = 180 / (numpy.pi * earth_radius_m)
-	deg_per_500m = deg_per_m * 500
-	output_map: ndarray = numpy.ones(subsample_shape, dtype=numpy.float32) * numpy.nan
-	w=subsample_shape[1]
-	h=subsample_shape[0]
+	if pickle_file is not None and path.exists(pickle_file):
+		print('%s already exists. Skipping download.' % pickle_file)
+		with open(pickle_file, 'rb') as fin:
+			return pickle.load(fin)
+	MODIS_grid_hori_count = 36
+	MODIS_grid_vert_count = 18
+	tile_size = 2400
+
+	sample_strat = sample_strat.lower()
+	if not(sample_strat == 'mean' or sample_strat == 'median' or sample_strat == 'mode' or sample_strat == 'nearest'):
+		raise Exception('Sub-sampling strategy sample_strat = "%s" not supported. Must be one of: mean, median, mode, nearest' % sample_strat)
+	downsample = int(downsample)
+	if downsample < 1: raise Exception('downsample must be a positive integer');
+
+	## NOTE: y=0 is north, positive y is south direction, x=0 is west, positive x is east direction
+	## NOTE: ndarray dimension order = data[y][x]
+	w=int(tile_size * MODIS_grid_hori_count / downsample)
+	h=int(tile_size * MODIS_grid_vert_count / downsample)
+	output_map: ndarray = numpy.ones((h, w), dtype=numpy.float32) * numpy.nan
+
 	os.makedirs(dest_dirpath, exist_ok=True)
 	modis_session = ModisSession(username=username, password=password)
 	# Query the MODIS catalog for collections
@@ -60,15 +96,15 @@ def download_MODIS_product(short_name, version, start_date, end_date, dest_dirpa
 	collections = collection_client.query(short_name=short_name, version=version)
 	granule_client = GranuleApi.from_collection(collections[0], session=modis_session)
 	granules = granule_client.query(start_date=start_date, end_date=end_date)
-	print('Downloading %s to %s...' % (short_name, dest_dirpath))
-	debug_skip = 9
+	print('Downloading %s from %s to %s to data directory %s...' % (short_name, start_date, end_date, dest_dirpath))
+	debug_skip = 10
 	for g in granules:
-		if(debug_skip:=debug_skip-1) != 0: continue
+		if(debug_skip := debug_skip-1) < 0: break
 		# print('links:')
 		# for L in g.links:
 		# 	print('\t',L.href)
 		filename = g.links[0].href[g.links[0].href.rfind('/')+1:]
-		print(filename)
+		print('\t','downloading ',filename)
 		filepath=path.join(dest_dirpath, filename)
 		if not path.exists(filepath):
 			GranuleHandler.download_from_granules(g, modis_session, path=dest_dirpath)
@@ -76,41 +112,60 @@ def download_MODIS_product(short_name, version, start_date, end_date, dest_dirpa
 			print('failed to download %s' % filename)
 			exit(1)
 		ds: gdal.Dataset = gdal.Open(filepath)
-		print_modis_structure(ds)
-		metadata: {} = ds.GetMetadata_Dict()
-		tile_ds: gdal.Dataset = gdal.Open(ds.GetSubDatasets()[0][0])
+		#print_modis_structure(ds)
+		tile_ds: gdal.Dataset = gdal.Open(ds.GetSubDatasets()[subset_index][0])
 		tile_meta: {} = tile_ds.GetMetadata_Dict()
-		print(json.dumps(tile_meta, indent='  '))
+		json_fp = '%s.json' % filepath
+		with open(json_fp, 'w') as fout:
+			print('\t','writing meta data to', json_fp)
+			json.dump(tile_meta, fout, indent='  ')
 		scale_factor = float(tile_meta['scale_factor'])
 		valid_range = [float(n) for n in tile_meta['valid_range'].split(', ')]
-		min_lon = float(tile_meta['WESTBOUNDINGCOORDINATE'])
-		min_lat = float(tile_meta['SOUTHBOUNDINGCOORDINATE'])
-		max_lon = float(tile_meta['EASTBOUNDINGCOORDINATE'])
-		max_lat = float(tile_meta['NORTHBOUNDINGCOORDINATE'])
+		tile_hori_pos = int(tile_meta['HORIZONTALTILENUMBER'])
+		tile_vert_pos = int(tile_meta['VERTICALTILENUMBER'])
 		tile_data: ndarray = tile_ds.ReadAsArray()
 		## mask and scale
 		tile_data = numpy.ma.array(tile_data, mask=numpy.logical_or(tile_data < valid_range[0], tile_data > valid_range[1])).astype(numpy.float32).filled(numpy.nan) * scale_factor
-		print('Data shape:',tile_data.shape)
-		print(tile_data[10][10])
-		print(tile_data[800][2300])
-		pyplot.imshow(tile_data, aspect='auto')
-		pyplot.show()
-		dest_bounds = (int(h*(min_lat/180)+0.5), int((w/2)+(w * (min_lon / 360))), int(h*(max_lat/180)+0.5), int((w/2)+(w * (max_lon / 360))))
-		for dest_y in range(dest_bounds[1],dest_bounds[3]+1):
-			dest_lat = 180*((dest_y/h)-0.5)
-			y =
-			for dest_x in range(dest_bounds[0],dest_bounds[2]+1):
-				dest_lon = 360*((dest_x/(w*numpy.cos(dest_lat*numpy.pi/180)))-0.5)
-				x =
-				output_map[dest_y][dest_x] = tile_data[y][x]
-				if not numpy.isnan(tile_data[y][x]): print('(%s,%s) -> (%s,%s)' % (x, y, dest_x, dest_y))
-		pyplot.imshow(output_map, aspect='auto')
-		pyplot.show()
-		# TODO: download, then down-sample at 0.05 deg (5.56km), then delete (to save space)
-		exit(1)
-
+		#print('Data shape:',tile_data.shape)
+		# pyplot.imshow(tile_data, aspect='auto')
+		# pyplot.show()
+		## subsample to output array
+		if sample_strat == 'mean':
+			def sample(src_data: ndarray, src_x: int, src_y: int, ssize: int, dest_data: ndarray, dest_x: int, dest_y: int):
+				dest_data[dest_y][dest_x] = numpy.nanmean(src_data[src_y:src_y+ssize,src_x:src_x+ssize])
+		elif sample_strat == 'median':
+			def sample(src_data: ndarray, src_x: int, src_y: int, ssize: int, dest_data: ndarray, dest_x: int, dest_y: int):
+				dest_data[dest_y][dest_x] = numpy.nanmedian(src_data[src_y:src_y+ssize,src_x:src_x+ssize])
+		elif sample_strat == 'mode':
+			def sample(src_data: ndarray, src_x: int, src_y: int, ssize: int, dest_data: ndarray, dest_x: int, dest_y: int):
+				vals, counts = numpy.unique(src_data[src_y:src_y+ssize,src_x:src_x+ssize], return_counts=True)
+				_mode = vals[numpy.argmax(counts)]
+				dest_data[dest_y][dest_x] = _mode
+		else: # nearest
+			def sample(src_data: ndarray, src_x: int, src_y: int, ssize: int, dest_data: ndarray, dest_x: int, dest_y: int):
+				dest_data[dest_y][dest_x] = src_data[src_y][src_x]
+		for y in range(0, tile_size, downsample):
+			dest_y = int((tile_size * tile_vert_pos + y) / downsample)
+			for x in range(0, tile_size, downsample):
+				dest_x = int((tile_size * tile_hori_pos + x) / downsample)
+				if dest_x == output_map.shape[1]: print('(tile_size, tile_vert_pos, tile_hori_pos, downsample, x, y, dest_x, dest_y)',(tile_size, tile_vert_pos, tile_hori_pos, downsample, x, y, dest_x, dest_y));
+				sample(tile_data, x, y, downsample, output_map, dest_x, dest_y)
+		#
+		## clean-up to conserve memory and resources for next iteration
+		del tile_data
+		del tile_meta
+		del tile_ds
+		del ds
+		if delete_files:
+			os.remove(filepath)
+			print('\t','extraction complete, file deleted.')
 	#GranuleHandler.download_from_granules(granules, modis_session, path='data')
 	print('...Download complete!')
+	if pickle_file is not None:
+		with open(pickle_file, 'wb') as fout:
+			pickle.dump(output_map, fout)
+			print('Saved %s' % pickle_file)
+	return output_map
 
 def print_modis_structure(dataset: gdal.Dataset):
 	metadata_dict = dict(dataset.GetMetadata_Dict())
