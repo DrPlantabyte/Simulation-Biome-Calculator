@@ -1,6 +1,6 @@
 #!/usr/bin/python3.9
 
-import os, shutil, sys, re, requests, base64, urllib.parse, numpy, pandas, json, pickle
+import os, shutil, sys, re, requests, base64, urllib.parse, numpy, pandas, json, pickle, ssl, time
 from os import path
 from modis_tools.auth import ModisSession
 from modis_tools.resources import CollectionApi, GranuleApi
@@ -67,7 +67,7 @@ def download_landcover_for_year(year, http_session):
 
 def retrieve_MODIS_500m_product(short_name, version, subset_index, start_date, end_date, dest_dirpath, username, password,
 								downsample: int = 10, sample_strat='mean', delete_files=False,
-								pickle_file=None):
+								pickle_file=None, retry_limit=5, retry_delay=10):
 	## NOTE: MODIS tile grid explained at https://modis-land.gsfc.nasa.gov/MODLAND_grid.html
 	if pickle_file is not None and path.exists(pickle_file):
 		print('%s already exists. Skipping download.' % pickle_file)
@@ -105,7 +105,17 @@ def retrieve_MODIS_500m_product(short_name, version, subset_index, start_date, e
 		print('\t','downloading ',filename)
 		filepath=path.join(dest_dirpath, filename)
 		if not path.exists(filepath):
-			GranuleHandler.download_from_granules(g, modis_session, path=dest_dirpath)
+			for attempt in range(0, retry_limit):
+				try:
+					GranuleHandler.download_from_granules(g, modis_session, path=dest_dirpath)
+				except ssl.SSLError as e:
+					print('SSL error while communicating with server:', e, file=sys.stderr)
+					if attempt < retry_limit-1:
+						print('Retrying in %s seconds...' % retry_delay, file=sys.stderr)
+						time.sleep(retry_delay)
+				else:
+					break
+
 		if not path.exists(filepath):
 			print('failed to download %s' % filename)
 			exit(1)
@@ -113,11 +123,11 @@ def retrieve_MODIS_500m_product(short_name, version, subset_index, start_date, e
 		#print_modis_structure(ds)
 		tile_ds: gdal.Dataset = gdal.Open(ds.GetSubDatasets()[subset_index][0])
 		tile_meta: {} = tile_ds.GetMetadata_Dict()
-		json_fp = '%s_%s_subset-%s.json' % (short_name, version, subset_index)
+		json_fp = path.join(dest_dirpath, '%s_%s_subset-%s.json' % (short_name, version, subset_index))
 		if not path.exists(json_fp):
 			with open(json_fp, 'w') as fout:
 				print('\t','writing meta data to', json_fp)
-			json.dump(tile_meta, fout, indent='  ')
+				json.dump(tile_meta, fout, indent='  ')
 		scale_factor = float(tile_meta['scale_factor'])
 		valid_range = [float(n) for n in tile_meta['valid_range'].split(', ')]
 		tile_hori_pos = int(tile_meta['HORIZONTALTILENUMBER'])
