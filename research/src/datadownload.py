@@ -108,7 +108,7 @@ def retrieve_MODIS_500m_product(short_name, version, subset_index, start_date, e
 			for attempt in range(0, retry_limit):
 				try:
 					GranuleHandler.download_from_granules(g, modis_session, path=dest_dirpath)
-				except ssl.SSLError as e:
+				except ssl.SSLEOFError as e:
 					print('SSL error while communicating with server:', e, file=sys.stderr)
 					if attempt < retry_limit-1:
 						print('Retrying in %s seconds...' % retry_delay, file=sys.stderr)
