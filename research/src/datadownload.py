@@ -18,7 +18,7 @@ def main():
 	secrets = pandas.read_csv('../secrets/pw.csv')
 	username = secrets['username'][0] #input('Earth Data Username: ')
 	password = secrets['password'][0] #input('Earth Data Password: ')
-	
+
 	# GPP
 	count = 0
 	for doy in range(1,365, 8):
@@ -29,21 +29,24 @@ def main():
 			'MYD17A2H', '006', 0, dstart.isoformat()[:10], dend.isoformat()[:10], data_dir, username, password,
 			downsample=10, sample_strat='mean', delete_files=True, pickle_file=path.join(data_dir,'GPP-aqua_2015_%s.pickle' % count)
 		)
-		pyplot.imshow(aq_gpp_map, aspect='auto')
-		pyplot.savefig('GPP-aqua_2015_%s.png' % count)
-		pyplot.clf()
+		fig, ax = pyplot.subplots(1,1)
+		ax.imshow(aq_gpp_map, aspect='auto')
+		fig.savefig('GPP-aqua_2015_%s.png' % count)
+		pyplot.close(fig)
 		terra_gpp_map = retrieve_MODIS_500m_product(
 			'MOD17A2H', '006', 0, dstart.isoformat()[:10], dend.isoformat()[:10], data_dir, username, password,
-			downsample=5, sample_strat='mean', delete_files=True, pickle_file=path.join(data_dir,'GPP-terra_2015_%s.pickle' % count)
+			downsample=10, sample_strat='mean', delete_files=True, pickle_file=path.join(data_dir,'GPP-terra_2015_%s.pickle' % count)
 		)
-		pyplot.imshow(terra_gpp_map, aspect='auto')
-		pyplot.savefig('GPP-terra_2015_%s.png' % count)
-		pyplot.clf()
+		fig, ax = pyplot.subplots(1, 1)
+		ax.imshow(terra_gpp_map, aspect='auto')
+		fig.savefig('GPP-terra_2015_%s.png' % count)
+		pyplot.close(fig)
 		all_gpp_map = numpy.nanmean(numpy.stack([aq_gpp_map, terra_gpp_map]), axis=0)
 		with open(path.join(data_dir,'GPP_2015_%s.pickle' % count), 'wb') as fout: pickle.dump(all_gpp_map, fout);
-		pyplot.imshow(all_gpp_map, aspect='auto')
-		pyplot.savefig('GPP_2015_%s.png' % count)
-		pyplot.clf()
+		fig, ax = pyplot.subplots(1, 1)
+		ax.imshow(all_gpp_map, aspect='auto')
+		fig.savefig('GPP_2015_%s.png' % count)
+		pyplot.close(fig)
 
 	print("...Done!")
 
