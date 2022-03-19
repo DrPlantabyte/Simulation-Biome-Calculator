@@ -1,6 +1,7 @@
 #!/usr/bin/python3.9
 
 import os, shutil, sys, re, requests, base64, urllib.parse, numpy, pandas, json, pickle, ssl, time
+import gzip
 from os import path
 from modis_tools.auth import ModisSession
 from modis_tools.resources import CollectionApi, GranuleApi
@@ -19,6 +20,19 @@ def main():
 	username = secrets['username'][0] #input('Earth Data Username: ')
 	password = secrets['password'][0] #input('Earth Data Password: ')
 
+	# desired products:
+	## Terrestrial Altitude - NOAA GLOBE TOPO
+	## Ocean Depth - GEBCO_2020
+	## Terrestrial LST - MOD11C3
+	## Marine SST - AQUA_MODIS NSST
+	## Global precipitation - GPM IMERG
+	## benthic/surface mean solar flux - calculated from solar intensity, latitude, axis tilt, and depth/atmosphere thickness
+	# altitude - https://www.ngdc.noaa.gov/mgg/topo/gltiles.html
+	alt_zip_file = path.join(data_dir, 'NOAA-GLOBE-TOPO_all-tiles.zip')
+	if not path.exists(alt_zip_file):
+		http_download(url='https://www.ngdc.noaa.gov/mgg/topo/DATATILES/elev/all10g.zip', filepath=alt_zip_file)
+	exit(1)
+
 	# GPP
 	count = 0
 	for doy in range(1,365, 8):
@@ -27,7 +41,7 @@ def main():
 		dend = datetime(2015,1,1) + timedelta(days=doy+8)
 		aq_gpp_map = retrieve_MODIS_500m_product(
 			'MYD17A2H', '006', 0, dstart.isoformat()[:10], dend.isoformat()[:10], data_dir, username, password,
-			downsample=10, sample_strat='mean', delete_files=True, pickle_file=path.join(data_dir,'GPP-aqua_2015_%s.pickle' % count)
+			downsample=10, sample_strat='mean', delete_files=True, zpickle_file=path.join(data_dir,'GPP-aqua_2015_%s.pickle.gz' % count)
 		)
 		fig, ax = pyplot.subplots(1,1)
 		ax.imshow(aq_gpp_map, aspect='auto')
@@ -35,20 +49,34 @@ def main():
 		pyplot.close(fig)
 		terra_gpp_map = retrieve_MODIS_500m_product(
 			'MOD17A2H', '006', 0, dstart.isoformat()[:10], dend.isoformat()[:10], data_dir, username, password,
-			downsample=10, sample_strat='mean', delete_files=True, pickle_file=path.join(data_dir,'GPP-terra_2015_%s.pickle' % count)
+			downsample=10, sample_strat='mean', delete_files=True, zpickle_file=path.join(data_dir,'GPP-terra_2015_%s.pickle.gz' % count)
 		)
 		fig, ax = pyplot.subplots(1, 1)
 		ax.imshow(terra_gpp_map, aspect='auto')
 		fig.savefig('GPP-terra_2015_%s.png' % count)
 		pyplot.close(fig)
 		all_gpp_map = numpy.nanmean(numpy.stack([aq_gpp_map, terra_gpp_map]), axis=0)
-		with open(path.join(data_dir,'GPP_2015_%s.pickle' % count), 'wb') as fout: pickle.dump(all_gpp_map, fout);
+		zpickle(all_gpp_map, path.join(data_dir,'GPP_2015_%s.pickle.gz' % count))
 		fig, ax = pyplot.subplots(1, 1)
 		ax.imshow(all_gpp_map, aspect='auto')
 		fig.savefig('GPP_2015_%s.png' % count)
 		pyplot.close(fig)
 
 	print("...Done!")
+
+def zpickle(obj, filepath):
+	parent = path.dirname(path.abspath(filepath))
+	if not path.isdir(parent):
+		os.makedirs(parent, exist_ok=True)
+	with gzip.open(filepath, 'wb') as zout:
+		pickle.dump(obj, zout)
+
+def zunpickle(filepath):
+	if path.exists(filepath):
+		with gzip.open(filepath, 'rb') as zin:
+			return pickle.load(zin)
+	else:
+		return None
 
 def download_landcover_for_year(year, http_session):
 	download_URL = get_landcover_URL_for_year(year)
@@ -67,12 +95,11 @@ def download_landcover_for_year(year, http_session):
 
 def retrieve_MODIS_500m_product(short_name, version, subset_index, start_date, end_date, dest_dirpath, username, password,
 								downsample: int = 10, sample_strat='mean', delete_files=False,
-								pickle_file=None, retry_limit=5, retry_delay=10):
+								zpickle_file=None, retry_limit=5, retry_delay=10):
 	## NOTE: MODIS tile grid explained at https://modis-land.gsfc.nasa.gov/MODLAND_grid.html
-	if pickle_file is not None and path.exists(pickle_file):
-		print('%s already exists. Skipping download.' % pickle_file)
-		with open(pickle_file, 'rb') as fin:
-			return pickle.load(fin)
+	if zpickle_file is not None and path.exists(zpickle_file):
+		print('%s already exists. Skipping download.' % zpickle_file)
+		return zunpickle(zpickle_file)
 	MODIS_grid_hori_count = 36
 	MODIS_grid_vert_count = 18
 	tile_size = 2400
@@ -170,10 +197,9 @@ def retrieve_MODIS_500m_product(short_name, version, subset_index, start_date, e
 			print('\t','extraction complete, file deleted.')
 	#GranuleHandler.download_from_granules(granules, modis_session, path='data')
 	print('...Download complete!')
-	if pickle_file is not None:
-		with open(pickle_file, 'wb') as fout:
-			pickle.dump(output_map, fout)
-			print('Saved %s' % pickle_file)
+	if zpickle_file is not None:
+		zpickle(output_map, zpickle_file)
+		print('Saved %s' % zpickle_file)
 	return output_map
 
 def print_modis_structure(dataset: gdal.Dataset):
@@ -181,6 +207,18 @@ def print_modis_structure(dataset: gdal.Dataset):
 	metadata_dict['Subsets'] = dataset.GetSubDatasets()
 	print(dataset.GetDescription(), json.dumps(metadata_dict, indent="  "))
 
+def http_download(url, filepath):
+	print('Downloading %s to %s...' % (url, filepath))
+	http_session = requests.session()
+	with http_session.get(url, stream=True) as r:
+		print('download status code: ', r.status_code)
+		r.raise_for_status()
+		with open(filepath, 'wb') as f:
+			for chunk in r.iter_content(chunk_size=2 ** 20): # 1 MB chunks
+				f.write(chunk)
+				print('.', end='')
+		print()
+	print('...Download complete!')
 
 def download_GPM_L3_product(short_name, version, year, month, dest_dirpath, username, password):
 	# wget --load-cookies /.urs_cookies --save-cookies /root/.urs_cookies --auth-no-challenge=on --user=your_user_name --ask-password --content-disposition -i <url text file>
