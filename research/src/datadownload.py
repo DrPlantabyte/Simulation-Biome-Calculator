@@ -28,6 +28,10 @@ def main():
 	## Global precipitation - GPM IMERG
 	## benthic/surface mean solar flux - calculated from solar intensity, latitude, axis tilt, and depth/atmosphere thickness
 	# altitude - https://www.ngdc.noaa.gov/mgg/topo/gltiles.html
+	alt_n_depth_file = path.join(data_dir, 'gebco_2021.zip')
+	if not path.exists(alt_n_depth_file):
+		http_download(url='https://www.bodc.ac.uk/data/open_download/gebco/gebco_2021_sub_ice_topo/zip/', filepath=alt_n_depth_file)
+	exit(1)
 	alt_zip_file = path.join(data_dir, 'NOAA-GLOBE-TOPO_all-tiles.zip')
 	if not path.exists(alt_zip_file):
 		http_download(url='https://www.ngdc.noaa.gov/mgg/topo/DATATILES/elev/all10g.zip', filepath=alt_zip_file)
