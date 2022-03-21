@@ -1,8 +1,9 @@
 #!/usr/bin/python3.9
 
 import os, shutil, sys, re, requests, base64, urllib.parse, numpy, pandas, json, pickle, ssl, time
-import gzip
+import gzip, h5py
 from os import path
+from zipfile import ZipFile
 from modis_tools.auth import ModisSession
 from modis_tools.resources import CollectionApi, GranuleApi
 from modis_tools.granule_handler import GranuleHandler
@@ -27,10 +28,30 @@ def main():
 	## Marine SST - AQUA_MODIS NSST
 	## Global precipitation - GPM IMERG
 	## benthic/surface mean solar flux - calculated from solar intensity, latitude, axis tilt, and depth/atmosphere thickness
+	
+	# other data sources
+	## seagrass meadow distribution - McKenzie et al 2020 The global distribution of seagrass meadows https://iopscience.iop.org/article/10.1088/1748-9326/ab7d06
+	## kelp forest distribution - Jayathilake & Costello 2020 A modelled global distribution of the kelp biome https://doi.org/10.1016/j.biocon.2020.108815
+	## coral reef distribution - https://pacificdata.org/data/dataset/global-distribution-of-coral-reefs
+
 	# altitude - https://www.ngdc.noaa.gov/mgg/topo/gltiles.html
-	alt_n_depth_file = path.join(data_dir, 'gebco_2021.zip')
-	if not path.exists(alt_n_depth_file):
-		http_download(url='https://www.bodc.ac.uk/data/open_download/gebco/gebco_2021_sub_ice_topo/zip/', filepath=alt_n_depth_file)
+	## NOTE: GEBCO data is in mercator projection with y=0 at south pole, 240 pixels per degree
+	atl_depth_zpickle_filepath = path.join(data_dir, 'altitude_5km.pickle.gz')
+	if not path.exists(atl_depth_zpickle_filepath):
+		x_dir = path.join(data_dir, 'gebco')
+		alt_depth_src = path.join(x_dir, 'GEBCO_2021_sub_ice_topo.nc')
+		if not path.exists(alt_depth_src):
+			alt_n_depth_file = path.join(data_dir, 'gebco_2021.zip')
+			if not path.exists(alt_n_depth_file):
+				http_download(url='https://www.bodc.ac.uk/data/open_download/gebco/gebco_2021_sub_ice_topo/zip/', filepath=alt_n_depth_file)
+			if path.exists(alt_n_depth_file):
+				with ZipFile(alt_n_depth_file, 'r') as zipf:
+					zipf.extractall(x_dir)
+			else:
+				raise Exception("Failed to retrieve GEBCO data")
+		alt_depth_hdf = h5py.File(alt_depth_src, 'r')
+		elevation_ds = alt_depth_hdf['elevation']
+		# Note: elevation_ds.shape == (43200, 86400), y=0 is south pole, mercator projection
 	exit(1)
 	alt_zip_file = path.join(data_dir, 'NOAA-GLOBE-TOPO_all-tiles.zip')
 	if not path.exists(alt_zip_file):
