@@ -28,7 +28,7 @@ def main():
 	## Marine SST - AQUA_MODIS NSST
 	## Global precipitation - GPM IMERG
 	## benthic/surface mean solar flux - calculated from solar intensity, latitude, axis tilt, and depth/atmosphere thickness
-	
+
 	# other data sources
 	## seagrass meadow distribution - McKenzie et al 2020 The global distribution of seagrass meadows https://iopscience.iop.org/article/10.1088/1748-9326/ab7d06
 	## kelp forest distribution - Jayathilake & Costello 2020 A modelled global distribution of the kelp biome https://doi.org/10.1016/j.biocon.2020.108815
@@ -36,7 +36,7 @@ def main():
 
 	# altitude - https://www.ngdc.noaa.gov/mgg/topo/gltiles.html
 	## NOTE: GEBCO data is in mercator projection with y=0 at south pole, 240 pixels per degree
-	atl_depth_zpickle_filepath = path.join(data_dir, 'altitude_5km.pickle.gz')
+	atl_depth_zpickle_filepath = path.join(data_dir, 'altitude_1km.pickle.gz')
 	if not path.exists(atl_depth_zpickle_filepath):
 		x_dir = path.join(data_dir, 'gebco')
 		alt_depth_src = path.join(x_dir, 'GEBCO_2021_sub_ice_topo.nc')
@@ -52,6 +52,7 @@ def main():
 		alt_depth_hdf = h5py.File(alt_depth_src, 'r')
 		elevation_ds = alt_depth_hdf['elevation']
 		# Note: elevation_ds.shape == (43200, 86400), y=0 is south pole, mercator projection
+		pyplot.imshow(elevation_ds[0::100,0::100]); pyplot.gca().invert_yaxis(); pyplot.show()
 	exit(1)
 	alt_zip_file = path.join(data_dir, 'NOAA-GLOBE-TOPO_all-tiles.zip')
 	if not path.exists(alt_zip_file):
