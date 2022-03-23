@@ -22,8 +22,7 @@ def main():
 	password = secrets['password'][0] #input('Earth Data Password: ')
 
 	# desired products:
-	## Terrestrial Altitude - NOAA GLOBE TOPO
-	## Ocean Depth - GEBCO_2020
+	## Altitude and Ocean Depth - GEBCO_2021
 	## Terrestrial LST - MOD11C3
 	## Marine SST - AQUA_MODIS NSST
 	## Global precipitation - GPM IMERG
@@ -34,9 +33,15 @@ def main():
 	## kelp forest distribution - Jayathilake & Costello 2020 A modelled global distribution of the kelp biome https://doi.org/10.1016/j.biocon.2020.108815
 	## coral reef distribution - https://pacificdata.org/data/dataset/global-distribution-of-coral-reefs
 
+	# data resolution: 2 km square pixels (0.018 degrees) on sine grid (20k x 10k pixel image)
+	#     X(lat,lon) = 10,000*(1 + cos(lat)*sin(lon)))
+	#     Y(lat,lon) = 5,000*(1 + sin(lat))
+	#     lat(X,Y) = 90*((Y/5,000) - 1)
+	#     lon(X,Y) = 180*((X/10,000) - 1)/cos(lat(X,Y))
+
 	# altitude - https://www.ngdc.noaa.gov/mgg/topo/gltiles.html
 	## NOTE: GEBCO data is in mercator projection with y=0 at south pole, 240 pixels per degree
-	atl_depth_zpickle_filepath = path.join(data_dir, 'altitude_1km.pickle.gz')
+	atl_depth_zpickle_filepath = path.join(data_dir, 'altitude_2km.pickle.gz')
 	if not path.exists(atl_depth_zpickle_filepath):
 		x_dir = path.join(data_dir, 'gebco')
 		alt_depth_src = path.join(x_dir, 'GEBCO_2021_sub_ice_topo.nc')
@@ -103,6 +108,46 @@ def zunpickle(filepath):
 			return pickle.load(zin)
 	else:
 		return None
+
+def lat_lon_to_singrid_XY(lat_lon, width_height):
+	# X(lat,lon) = (w/2)*(1 + cos(lat)*sin(lon))
+	# Y(lat,lon) = (h/2)*(1 + sin(lat))
+	# lat(X,Y) = 90*((Y/(h/2)) - 1)
+	# lon(X,Y) = 180*((X/(w/2)) - 1)/cos(lat(X,Y))
+	half_width = 0.5*width_height[0]
+	half_height = 0.5*width_height[1]
+	lat = lat_lon[0]
+	lon  = lat_lon[1]
+	deg2rad = numpy.pi/180
+	x = half_width * (1 + numpy.cos(lat * deg2rad)*numpy.sin(lon * deg2rad))
+	y = half_height * (1 + numpy.sin(lat))
+	return numpy.asarray([x,y])
+
+def singrid_XY_to_lat_lon(XY, width_height):
+	half_width = 0.5*width_height[0]
+	half_height = 0.5*width_height[1]
+	x = XY[0]
+	y = XY[1]
+	deg2rad = numpy.pi/180
+	lat = 90*((y/half_height) - 1)
+	lon = 180*((x/half_width) - 1)/numpy.cos(lat * deg2rad)
+	return numpy.asarray([lat,lon])
+
+def singrid_mask(width_height):
+	w = width_height[0]
+	h = width_height[1]
+	deg2rad = numpy.pi/180
+	mask = numpy.zeros((h,w), dtype=numpy.bool)
+	for row in range(0,h):
+		lat, _ = singrid_XY_to_lat_lon((0,row),width_height=width_height)
+		half_row_width = numpy.cos(lat * deg2rad)
+		left = 0.5 - half_row_width
+		right = 0.5 + half_row_width
+		row_data = numpy.linspace(0,1,int(w))-0.5
+		mask[row] = numpy.logical_and(row_data >= left, row_data <= right)
+	return mask
+
+# TODO: mercator to singrid function with resizing
 
 def download_landcover_for_year(year, http_session):
 	download_URL = get_landcover_URL_for_year(year)
