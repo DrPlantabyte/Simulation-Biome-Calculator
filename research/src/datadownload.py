@@ -180,11 +180,18 @@ def mercator_to_singrid(merc: ndarray, dtype=None, nodata=-1) -> ndarray:
 		singrid = numpy.zeros_like(merc) + nodata
 	else:
 		singrid = numpy.zeros_like(merc, dtype=dtype) + nodata
-	center = merc.shape // 2
+	x_offset = merc.shape[1] / 2
 	deg2rad = numpy.pi/180
 	grid_size_radians = merc.shape[0] / numpy.pi
-	for row in range(merc.shape[0]):
-		lat = ((row / (merc.shape[0])) - 0.5) * numpy.pi
+	for src_y in range(merc.shape[0]):
+		dst_y = src_y
+		lat_rad = ((src_y / (merc.shape[0])) - 0.5) * numpy.pi
+		circ = merc.shape[1] * numpy.cos(lat_rad)
+		src_per_dst = int(numpy.round(merc.shape[1] / circ))
+		half_circ = circ/2
+		for dst_x in range(int(x_offset - half_circ), int(x_offset + half_circ + 1)):
+			lon_rad = 
+			val = merc[src_y,]
 		# TODO
 
 
