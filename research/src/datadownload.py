@@ -8,7 +8,7 @@ from modis_tools.auth import ModisSession
 from modis_tools.resources import CollectionApi, GranuleApi
 from modis_tools.granule_handler import GranuleHandler
 from osgeo import gdal
-from numpy import ndarray
+from numpy import ndarray, nan
 from pandas import DataFrame
 from matplotlib import pyplot
 from datetime import datetime, timedelta
@@ -133,7 +133,7 @@ def singrid_XY_to_lat_lon(XY, width_height):
 	lon = 180*((x/half_width) - 1)/numpy.cos(lat * deg2rad)
 	return numpy.asarray([lat,lon])
 
-def singrid_mask(width_height):
+def singrid_mask(width_height) -> ndarray:
 	w = width_height[0]
 	h = width_height[1]
 	deg2rad = numpy.pi/180
@@ -146,6 +146,47 @@ def singrid_mask(width_height):
 		row_data = numpy.linspace(0,1,int(w))-0.5
 		mask[row] = numpy.logical_and(row_data >= left, row_data <= right)
 	return mask
+
+def sub_sample(src: ndarray, dst_shape, subsample_strat='mean') -> ndarray:
+	if not (subsample_strat == 'mean' or subsample_strat == 'median' or subsample_strat == 'mode' or subsample_strat == 'nearest'):
+		raise Exception(
+			'Sub-sampling strategy subsample_strat = "%s" not supported. Must be one of: mean, median, mode, nearest' % subsample_strat)
+	if subsample_strat == 'mean':
+		def sample(src_data: ndarray, src_x: int, src_y: int, ssize_x: int, ssize_y: int, dest_data: ndarray, dest_x: int, dest_y: int):
+			dest_data[dest_y][dest_x] = numpy.nanmean(src_data[src_y:src_y + ssize_y, src_x:src_x + ssize_x])
+	elif subsample_strat == 'median':
+		def sample(src_data: ndarray, src_x: int, src_y: int, ssize_x: int, ssize_y: int, dest_data: ndarray, dest_x: int, dest_y: int):
+			dest_data[dest_y][dest_x] = numpy.nanmedian(src_data[src_y:src_y + ssize_y, src_x:src_x + ssize_x])
+	elif subsample_strat == 'mode':
+		def sample(src_data: ndarray, src_x: int, src_y: int, ssize_x: int, ssize_y: int, dest_data: ndarray, dest_x: int, dest_y: int):
+			vals, counts = numpy.unique(src_data[src_y:src_y + ssize_y, src_x:src_x + ssize_x], return_counts=True)
+			_mode = vals[numpy.argmax(counts)]
+			dest_data[dest_y][dest_x] = _mode
+	else:  # nearest
+		def sample(src_data: ndarray, src_x: int, src_y: int, size_x: int, ssize_y: int, dest_data: ndarray, dest_x: int, dest_y: int):
+			dest_data[dest_y][dest_x] = src_data[src_y][src_x]
+	dst = numpy.ones(dst_shape, dtype=src.dtype)
+	for dest_y in range(0, dst_shape[0]):
+		src_y = int(src.shape[0] * dest_y / dst_shape[0])
+		ss_y = int(src.shape[0] / dst_shape[0])
+		for dest_x in range(0, dst_shape[1]):
+			src_x = int(src.shape[1] * dest_x / dst_shape[1])
+			ss_x = int(src.shape[1] / dst_shape[1])
+			sample(src, src_x, src_y, ss_x, ss_y, dst, dest_x, dest_y)
+	return dst
+
+def mercator_to_singrid(merc: ndarray, dtype=None, nodata=-1) -> ndarray:
+	if dtype is None:
+		singrid = numpy.zeros_like(merc) + nodata
+	else:
+		singrid = numpy.zeros_like(merc, dtype=dtype) + nodata
+	center = merc.shape // 2
+	deg2rad = numpy.pi/180
+	grid_size_radians = merc.shape[0] / numpy.pi
+	for row in range(merc.shape[0]):
+		lat = ((row / (merc.shape[0])) - 0.5) * numpy.pi
+		# TODO
+
 
 # TODO: mercator to singrid function with resizing
 
