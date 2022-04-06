@@ -175,7 +175,11 @@ def sub_sample(src: ndarray, dst_shape, subsample_strat='mean') -> ndarray:
 			sample(src, src_x, src_y, ss_x, ss_y, dst, dest_x, dest_y)
 	return dst
 
-def mercator_to_singrid(merc: ndarray, dtype=None, nodata=-1) -> ndarray:
+def mercator_to_singrid(merc: ndarray, dtype=None, nodata=-1, strat='mean') -> ndarray:
+	if not (strat == 'mean' or strat == 'median' or strat == 'mode' or strat == 'nearest'):
+		raise Exception(
+			'Sub-sampling strategy strat = "%s" not supported. Must be one of: mean, median, mode, nearest' % strat)
+	# TODO
 	if dtype is None:
 		singrid = numpy.zeros_like(merc) + nodata
 	else:
@@ -187,11 +191,13 @@ def mercator_to_singrid(merc: ndarray, dtype=None, nodata=-1) -> ndarray:
 		dst_y = src_y
 		lat_rad = ((src_y / (merc.shape[0])) - 0.5) * numpy.pi
 		circ = merc.shape[1] * numpy.cos(lat_rad)
-		src_per_dst = int(numpy.round(merc.shape[1] / circ))
-		half_circ = circ/2
-		for dst_x in range(int(x_offset - half_circ), int(x_offset + half_circ + 1)):
-			lon_rad = 
-			val = merc[src_y,]
+		chunks = (numpy.linspace(0,1, max(1, circ)+1)*merc.shape[1]).astype(numpy.int32)
+		for i in range(0, len(chunks)-1):
+			src_x_left = chunks[i]
+			src_x_right = chunks[i+1]
+			dst_x = int(x_offset - (circ/2) + i)
+
+
 		# TODO
 
 
