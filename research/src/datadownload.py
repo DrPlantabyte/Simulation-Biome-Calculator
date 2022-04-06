@@ -8,7 +8,7 @@ from modis_tools.auth import ModisSession
 from modis_tools.resources import CollectionApi, GranuleApi
 from modis_tools.granule_handler import GranuleHandler
 from osgeo import gdal
-from numpy import ndarray, nan
+from numpy import ndarray, nan, float32
 from pandas import DataFrame
 from matplotlib import pyplot
 from datetime import datetime, timedelta
@@ -58,6 +58,8 @@ def main():
 		elevation_ds = alt_depth_hdf['elevation']
 		# Note: elevation_ds.shape == (43200, 86400), y=0 is south pole, mercator projection
 		pyplot.imshow(elevation_ds[0::100,0::100]); pyplot.gca().invert_yaxis(); pyplot.show()
+		pyplot.imshow(mercator_to_singrid(elevation_ds[0::100, 0::100], nodata=nan, dtype=float32)); pyplot.gca().invert_yaxis(); pyplot.show()
+		
 	exit(1)
 	alt_zip_file = path.join(data_dir, 'NOAA-GLOBE-TOPO_all-tiles.zip')
 	if not path.exists(alt_zip_file):
@@ -179,26 +181,41 @@ def mercator_to_singrid(merc: ndarray, dtype=None, nodata=-1, strat='mean') -> n
 	if not (strat == 'mean' or strat == 'median' or strat == 'mode' or strat == 'nearest'):
 		raise Exception(
 			'Sub-sampling strategy strat = "%s" not supported. Must be one of: mean, median, mode, nearest' % strat)
-	# TODO
+	if strat == 'mean':
+		def combine(sector: ndarray):
+			return numpy.nanmean(sector)
+	elif strat == 'median':
+		def combine(sector: ndarray):
+			return numpy.nanmedian(sector)
+	elif strat == 'mode':
+		def combine(sector: ndarray):
+			vals, counts = numpy.unique(sector, return_counts=True)
+			_mode = vals[numpy.argmax(counts)]
+			return _mode
 	if dtype is None:
 		singrid = numpy.zeros_like(merc) + nodata
 	else:
 		singrid = numpy.zeros_like(merc, dtype=dtype) + nodata
 	x_offset = merc.shape[1] / 2
-	deg2rad = numpy.pi/180
-	grid_size_radians = merc.shape[0] / numpy.pi
 	for src_y in range(merc.shape[0]):
 		dst_y = src_y
 		lat_rad = ((src_y / (merc.shape[0])) - 0.5) * numpy.pi
-		circ = merc.shape[1] * numpy.cos(lat_rad)
-		chunks = (numpy.linspace(0,1, max(1, circ)+1)*merc.shape[1]).astype(numpy.int32)
-		for i in range(0, len(chunks)-1):
-			src_x_left = chunks[i]
-			src_x_right = chunks[i+1]
-			dst_x = int(x_offset - (circ/2) + i)
-
-
-		# TODO
+		cos_lat = numpy.cos(lat_rad)
+		circ = merc.shape[1] * cos_lat
+		if cos_lat < 0.66667:
+			## more source pixels than dest pixels
+			chunks = (numpy.linspace(0,1, int(max(1, circ))+1)*merc.shape[1]).astype(numpy.int32)
+			for i in range(0, len(chunks)-1):
+				src_x_left = chunks[i]
+				src_x_right = chunks[i+1]
+				dst_x = int(x_offset - (circ/2) + i)
+				singrid[dst_y][dst_x] = combine(merc[src_y][src_x_left:src_x_right])
+		else:
+			## roughly 1:1 srd to dest
+			resample = (numpy.linspace(0,1,int(circ+0.5)-1)*(merc.shape[1]-1)).astype(numpy.int32)
+			L_margin = int((singrid.shape[1]-len(resample))/2)
+			singrid[dst_y][L_margin:L_margin+len(resample)] = merc[src_y].take(resample)
+	return singrid
 
 
 # TODO: mercator to singrid function with resizing
