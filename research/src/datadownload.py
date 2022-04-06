@@ -33,47 +33,63 @@ def main():
 	## kelp forest distribution - Jayathilake & Costello 2020 A modelled global distribution of the kelp biome https://doi.org/10.1016/j.biocon.2020.108815
 	## coral reef distribution - https://pacificdata.org/data/dataset/global-distribution-of-coral-reefs
 
-	# data resolution: 2 km square pixels (0.018 degrees) on sine grid (20k x 10k pixel image)
-	#     X(lat,lon) = 10,000*(1 + cos(lat)*sin(lon)))
-	#     Y(lat,lon) = 5,000*(1 + sin(lat))
-	#     lat(X,Y) = 90*((Y/5,000) - 1)
-	#     lon(X,Y) = 180*((X/10,000) - 1)/cos(lat(X,Y))
+	# data resolution: 1.85 km square pixels (0.017 degrees, or 60 px/deg) on sine grid (21.6k x 10.8k pixel image)
+	# with (0,0) at SW corner
+	#     X(lat,lon) = 10,800*(1 + cos(lat)*sin(lon)))
+	#     Y(lat,lon) = 5,400*(1 + sin(lat))
+	#     lat(X,Y) = 90*((Y/5,400) - 1)
+	#     lon(X,Y) = 180*((X/10,800) - 1)/cos(lat(X,Y))
+
+	# IGBP land cover type map - https://modis-land.gsfc.nasa.gov/landcover.html
+	## NOTE: MCD12Q1 is in sine grid tile mosaic (https://modis-land.gsfc.nasa.gov/MODLAND_grid.html)
+	## with (0,0) being the NW corner (pos Y is south), with 463m (240 px/deg) resolution
+
+	# retrieve_MODIS_500m_product(
+	# 	short_name, version, subset_index, start_date, end_date, dest_dirpath,
+	# 	username, password,
+	# 	downsample = 8, sample_strat = 'mean', delete_files = False,
+	# 	zpickle_file = None, retry_limit = 5, retry_delay = 10
+	# ) # TODO
+
 
 	# altitude - https://www.ngdc.noaa.gov/mgg/topo/gltiles.html
 	## NOTE: GEBCO data is in mercator projection with y=0 at south pole, 240 pixels per degree
-	alt_depth_zpickle_filepath = path.join(data_dir, 'altitude_2km_singrid.pickle.gz')
+	alt_depth_zpickle_filepath = path.join(data_dir, 'altitude_1852m_singrid.pickle.gz')
 	if not path.exists(alt_depth_zpickle_filepath):
-		x_dir = path.join(data_dir, 'gebco')
-		alt_depth_src = path.join(x_dir, 'GEBCO_2021_sub_ice_topo.nc')
-		if not path.exists(alt_depth_src):
-			alt_n_depth_file = path.join(data_dir, 'gebco_2021.zip')
-			if not path.exists(alt_n_depth_file):
-				http_download(url='https://www.bodc.ac.uk/data/open_download/gebco/gebco_2021_sub_ice_topo/zip/', filepath=alt_n_depth_file)
-			if path.exists(alt_n_depth_file):
-				with ZipFile(alt_n_depth_file, 'r') as zipf:
-					zipf.extractall(x_dir)
-			else:
-				raise Exception("Failed to retrieve GEBCO data")
-		alt_depth_hdf = h5py.File(alt_depth_src, 'r')
-		elevation_ds = alt_depth_hdf['elevation']
-		# Note: elevation_ds.shape == (43200, 86400), y=0 is south pole, mercator projection
-		pyplot.imshow(elevation_ds[0::100,0::100]); pyplot.gca().invert_yaxis(); pyplot.show()
-		pyplot.imshow(mercator_to_singrid(elevation_ds[0::100, 0::100], nodata=nan, dtype=float32)); pyplot.gca().invert_yaxis(); pyplot.show()
-		elevation_2km_pickle = path.join(data_dir, 'GEBCO_elevation_2km_mercator.pickle.gz')
-		if not path.exists(elevation_2km_pickle):
-			elevation_2km_merc = sub_sample(elevation_ds, (10000, 20000), subsample_strat='mean')
+		elevation_1852m_pickle = path.join(data_dir, 'GEBCO_elevation_1852m_mercator.pickle.gz')
+		if not path.exists(elevation_1852m_pickle):
+			x_dir = path.join(data_dir, 'gebco')
+			alt_depth_src = path.join(x_dir, 'GEBCO_2021_sub_ice_topo.nc')
+			if not path.exists(alt_depth_src):
+				alt_n_depth_file = path.join(data_dir, 'gebco_2021.zip')
+				if not path.exists(alt_n_depth_file):
+					http_download(url='https://www.bodc.ac.uk/data/open_download/gebco/gebco_2021_sub_ice_topo/zip/', filepath=alt_n_depth_file)
+				if path.exists(alt_n_depth_file):
+					with ZipFile(alt_n_depth_file, 'r') as zipf:
+						zipf.extractall(x_dir)
+				else:
+					raise Exception("Failed to retrieve GEBCO data")
+			alt_depth_hdf = h5py.File(alt_depth_src, 'r')
+			elevation_ds = alt_depth_hdf['elevation']
+			# Note: elevation_ds.shape == (43200, 86400), y=0 is south pole, mercator projection
+			#pyplot.imshow(elevation_ds[0::100,0::100]); pyplot.gca().invert_yaxis(); pyplot.show()
+			#pyplot.imshow(mercator_to_singrid(elevation_ds[0::100, 0::100], nodata=nan, dtype=float32)); pyplot.gca().invert_yaxis(); pyplot.show()
+			elevation_1852m_merc = sub_sample(elevation_ds, (10800, 21600), subsample_strat='mean')
 		else:
-			elevation_2km_merc = zunpickle(elevation_2km_pickle)
-		altitude_2km_singrid = mercator_to_singrid(elevation_2km_merc, nodata=nan, dtype=float32, strat='mean')
-		del elevation_2km_merc
-		zpickle(altitude_2km_singrid, alt_depth_zpickle_filepath)
+			elevation_1852m_merc = zunpickle(elevation_1852m_pickle)
+		altitude_1852m_singrid = mercator_to_singrid(elevation_1852m_merc, nodata=nan, dtype=float32, strat='mean')
+		del elevation_1852m_merc
+		zpickle(altitude_1852m_singrid, alt_depth_zpickle_filepath)
 		del elevation_ds
 		alt_depth_hdf.close()
 		del alt_depth_hdf
 	else:
-		altitude_2km_singrid = zunpickle(alt_depth_zpickle_filepath)
+		altitude_1852m_singrid = zunpickle(alt_depth_zpickle_filepath)
 
-	print('altitude_2km_singrid.shape == ',altitude_2km_singrid.shape)
+	print('altitude_1852m_singrid.shape == ',altitude_1852m_singrid.shape)
+	pyplot.imshow(altitude_1852m_singrid[0::10, 0::10], alpha=1); pyplot.gca().invert_yaxis(); pyplot.show()
+
+
 	exit(1)
 	alt_zip_file = path.join(data_dir, 'NOAA-GLOBE-TOPO_all-tiles.zip')
 	if not path.exists(alt_zip_file):
@@ -234,7 +250,6 @@ def mercator_to_singrid(merc: ndarray, dtype=None, nodata=-1, strat='mean') -> n
 	return singrid
 
 
-# TODO: mercator to singrid function with resizing
 
 def download_landcover_for_year(year, http_session):
 	download_URL = get_landcover_URL_for_year(year)
