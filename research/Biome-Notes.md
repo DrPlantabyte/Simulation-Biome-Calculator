@@ -53,3 +53,48 @@ Inputs to the calculation:
 * Utopia/heaven/magic garden
 * Consuming goo/giant blob/living ocean
 
+# Enum Values:
+
+### Binary format: 0b0yyyxxxx
+* yyy = biome category (0=terrestrial, 1=aquatic, 2=artificial, 4=astronomical, 7=fictional)
+* xxxx = biome code within category
+
+## Codes
+UNKNOWN = 0x00
+### TERRESTRIAL BIOMES
+WETLAND = 0x01
+JUNGLE = 0x02
+SEASONAL_FOREST = 0x03
+NEEDLELEAF_FOREST = 0x04
+GRASSLAND = 0x05
+DESERT_SHRUBLAND = 0x06
+### AQUATIC BIOMES
+FRESHWATER = 0x11
+SEA_FOREST = 0x12
+TROPICAL_REEF = 0x13
+ROCKY_SHALLOWS = 0x14
+DEEP_OCEAN = 0x10
+### EXTREME/MICROBIOTIC BIOMES (terrestrial and aquatic)
+BARREN = 0x07
+SAND_SEA = 0x08
+ICE_SHEET = 0x15
+BOILING_SEA = 0x16
+### ASTRONOMICAL BIOMES
+MOONSCAPE = 0x40
+MAGMA_SEA = 0x41
+CRYOGEN_SEA = 0x42
+GAS_GIANT = 0x43
+STAR = 0x44
+NEUTRON_STAR = 0x45
+EVENT_HORIZON = 0x46
+### ARTIFICIAL BIOMES
+FARMLAND = 0x20
+URBAN = 0x21
+### SCIFI/FANTASY BIOMES
+RUINS = 0x22
+BIOLUMINESCENT = 0x70
+DEAD = 0x71
+MAGIC_GARDEN = 0x72
+ELEMENTAL_CHAOS = 0x73
+OOZE = 0x74
+

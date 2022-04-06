@@ -41,8 +41,8 @@ def main():
 
 	# altitude - https://www.ngdc.noaa.gov/mgg/topo/gltiles.html
 	## NOTE: GEBCO data is in mercator projection with y=0 at south pole, 240 pixels per degree
-	atl_depth_zpickle_filepath = path.join(data_dir, 'altitude_2km.pickle.gz')
-	if not path.exists(atl_depth_zpickle_filepath):
+	alt_depth_zpickle_filepath = path.join(data_dir, 'altitude_2km_singrid.pickle.gz')
+	if not path.exists(alt_depth_zpickle_filepath):
 		x_dir = path.join(data_dir, 'gebco')
 		alt_depth_src = path.join(x_dir, 'GEBCO_2021_sub_ice_topo.nc')
 		if not path.exists(alt_depth_src):
@@ -59,7 +59,21 @@ def main():
 		# Note: elevation_ds.shape == (43200, 86400), y=0 is south pole, mercator projection
 		pyplot.imshow(elevation_ds[0::100,0::100]); pyplot.gca().invert_yaxis(); pyplot.show()
 		pyplot.imshow(mercator_to_singrid(elevation_ds[0::100, 0::100], nodata=nan, dtype=float32)); pyplot.gca().invert_yaxis(); pyplot.show()
-		
+		elevation_2km_pickle = path.join(data_dir, 'GEBCO_elevation_2km_mercator.pickle.gz')
+		if not path.exists(elevation_2km_pickle):
+			elevation_2km_merc = sub_sample(elevation_ds, (10000, 20000), subsample_strat='mean')
+		else:
+			elevation_2km_merc = zunpickle(elevation_2km_pickle)
+		altitude_2km_singrid = mercator_to_singrid(elevation_2km_merc, nodata=nan, dtype=float32, strat='mean')
+		del elevation_2km_merc
+		zpickle(altitude_2km_singrid, alt_depth_zpickle_filepath)
+		del elevation_ds
+		alt_depth_hdf.close()
+		del alt_depth_hdf
+	else:
+		altitude_2km_singrid = zunpickle(alt_depth_zpickle_filepath)
+
+	print('altitude_2km_singrid.shape == ',altitude_2km_singrid.shape)
 	exit(1)
 	alt_zip_file = path.join(data_dir, 'NOAA-GLOBE-TOPO_all-tiles.zip')
 	if not path.exists(alt_zip_file):
@@ -98,6 +112,7 @@ def main():
 	print("...Done!")
 
 def zpickle(obj, filepath):
+	print('Pickling %s with gzip compression...' % filepath)
 	parent = path.dirname(path.abspath(filepath))
 	if not path.isdir(parent):
 		os.makedirs(parent, exist_ok=True)
@@ -105,6 +120,7 @@ def zpickle(obj, filepath):
 		pickle.dump(obj, zout)
 
 def zunpickle(filepath):
+	print('Unpickling %s with gzip decompression...' % filepath)
 	if path.exists(filepath):
 		with gzip.open(filepath, 'rb') as zin:
 			return pickle.load(zin)
