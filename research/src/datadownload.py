@@ -75,6 +75,7 @@ def main():
 			#pyplot.imshow(elevation_ds[0::100,0::100]); pyplot.gca().invert_yaxis(); pyplot.show()
 			#pyplot.imshow(mercator_to_singrid(elevation_ds[0::100, 0::100], nodata=nan, dtype=float32)); pyplot.gca().invert_yaxis(); pyplot.show()
 			elevation_1852m_merc = sub_sample(elevation_ds, (10800, 21600), subsample_strat='mean')
+			zpickle(elevation_1852m_merc, elevation_1852m_pickle)
 		else:
 			elevation_1852m_merc = zunpickle(elevation_1852m_pickle)
 		altitude_1852m_singrid = mercator_to_singrid(elevation_1852m_merc, nodata=nan, dtype=float32, strat='mean')
