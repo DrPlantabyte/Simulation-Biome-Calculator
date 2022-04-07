@@ -43,13 +43,36 @@ def main():
 	# IGBP land cover type map - https://modis-land.gsfc.nasa.gov/landcover.html
 	## NOTE: MCD12Q1 is in sine grid tile mosaic (https://modis-land.gsfc.nasa.gov/MODLAND_grid.html)
 	## with (0,0) being the NW corner (pos Y is south), with 463m (240 px/deg) resolution
-
-	# retrieve_MODIS_500m_product(
-	# 	short_name, version, subset_index, start_date, end_date, dest_dirpath,
-	# 	username, password,
-	# 	downsample = 8, sample_strat = 'mean', delete_files = False,
-	# 	zpickle_file = None, retry_limit = 5, retry_delay = 10
-	# ) # TODO
+	modis_igbp_picklepath = path.join(data_dir, 'MCQ12Q1_1852m_igbp.pickle.gz')
+	modis_faolccs_picklepath = path.join(data_dir, 'MCQ12Q1_1852m_fao-lccs.pickle.gz')
+	modis_faohydro_picklepath = path.join(data_dir, 'MCQ12Q1_1852m_fao-hydrology.pickle.gz')
+	if not path.exists(modis_igbp_picklepath) or not path.exists(modis_faolccs_picklepath) or not path.exists(modis_faohydro_picklepath):
+		modis_dir = path.join(data_dir, 'modis')
+		os.makedirs(modis_dir, exist_ok=True)
+		maps = retrieve_MODIS_500m_product(
+			short_name='MCD12Q1', version='006', subset_indices=[0,5,7],
+			start_date='2020-01-01', end_date='2020-12-31', dest_dirpath=modis_dir,
+			username=username, password=password, dtype=numpy.uint8, nodata=255,
+			downsample = 4, sample_strat = 'mode', delete_files = True,
+			zpickle_file = None, retry_limit = 5, retry_delay = 10
+		)
+		igbp_map = maps[0]
+		fao_lccs_map = maps[1]
+		fao_hydro_map = maps[2]
+		zpickle(igbp_map, modis_igbp_picklepath)
+		zpickle(fao_lccs_map, modis_faolccs_picklepath)
+		zpickle(fao_hydro_map, modis_faohydro_picklepath)
+	else:
+		igbp_map = zunpickle(modis_igbp_picklepath)
+		fao_lccs_map = zunpickle(modis_faolccs_picklepath)
+		fao_hydro_map = zunpickle(modis_faohydro_picklepath)
+	print('igbp_map.shape == ', igbp_map.shape, ' dtype == ', igbp_map.dtype)
+	print('fao_lccs_map.shape == ', fao_lccs_map.shape, ' dtype == ', fao_lccs_map.dtype)
+	print('fao_hydro_map.shape == ', fao_hydro_map.shape, ' dtype == ', fao_hydro_map.dtype)
+	del fao_lccs_map
+	del fao_hydro_map
+	pyplot.imshow(igbp_map[0::10, 0::10], alpha=1); pyplot.gca().invert_yaxis(); pyplot.show()
+	del igbp_map
 
 
 	# altitude - https://www.ngdc.noaa.gov/mgg/topo/gltiles.html
@@ -267,8 +290,9 @@ def download_landcover_for_year(year, http_session):
 	print('...Download complete!')
 
 
-def retrieve_MODIS_500m_product(short_name, version, subset_index, start_date, end_date, dest_dirpath, username, password,
+def retrieve_MODIS_500m_product(short_name, version, subset_indices, start_date, end_date, dest_dirpath, username, password,
 								downsample: int = 10, sample_strat='mean', delete_files=False,
+								dtype=numpy.float32, nodata=numpy.nan,
 								zpickle_file=None, retry_limit=5, retry_delay=10):
 	## NOTE: MODIS tile grid explained at https://modis-land.gsfc.nasa.gov/MODLAND_grid.html
 	if zpickle_file is not None and path.exists(zpickle_file):
@@ -281,6 +305,23 @@ def retrieve_MODIS_500m_product(short_name, version, subset_index, start_date, e
 	sample_strat = sample_strat.lower()
 	if not(sample_strat == 'mean' or sample_strat == 'median' or sample_strat == 'mode' or sample_strat == 'nearest'):
 		raise Exception('Sub-sampling strategy sample_strat = "%s" not supported. Must be one of: mean, median, mode, nearest' % sample_strat)
+
+	## subsample to output array
+	if sample_strat == 'mean':
+		def sample(src_data: ndarray, src_x: int, src_y: int, ssize: int, dest_data: ndarray, dest_x: int, dest_y: int):
+			dest_data[dest_y][dest_x] = numpy.nan_to_num(numpy.nanmean(src_data[src_y:src_y + ssize, src_x:src_x + ssize]), nan=nodata).astype(dtype)
+	elif sample_strat == 'median':
+		def sample(src_data: ndarray, src_x: int, src_y: int, ssize: int, dest_data: ndarray, dest_x: int, dest_y: int):
+			dest_data[dest_y][dest_x] = numpy.nan_to_num(numpy.nanmedian(src_data[src_y:src_y + ssize, src_x:src_x + ssize]), nan=nodata).astype(dtype)
+	elif sample_strat == 'mode':
+		def sample(src_data: ndarray, src_x: int, src_y: int, ssize: int, dest_data: ndarray, dest_x: int, dest_y: int):
+			vals, counts = numpy.unique(src_data[src_y:src_y + ssize, src_x:src_x + ssize], return_counts=True)
+			_mode = numpy.asarray(vals[numpy.argmax(counts)])
+			dest_data[dest_y][dest_x] = numpy.nan_to_num(_mode, nan=nodata).astype(dtype)
+	else:  # nearest
+		def sample(src_data: ndarray, src_x: int, src_y: int, ssize: int, dest_data: ndarray, dest_x: int, dest_y: int):
+			dest_data[dest_y][dest_x] = numpy.nan_to_num(src_data[src_y][src_x], nan=nodata).astype(dtype)
+
 	downsample = int(downsample)
 	if downsample < 1: raise Exception('downsample must be a positive integer');
 
@@ -288,7 +329,9 @@ def retrieve_MODIS_500m_product(short_name, version, subset_index, start_date, e
 	## NOTE: ndarray dimension order = data[y][x]
 	w=int(tile_size * MODIS_grid_hori_count / downsample)
 	h=int(tile_size * MODIS_grid_vert_count / downsample)
-	output_map: ndarray = numpy.ones((h, w), dtype=numpy.float32) * numpy.nan
+	output_maps: [ndarray] = []
+	for _ in subset_indices:
+		output_maps.append(numpy.ones((h, w), dtype=dtype) * nodata)
 
 	os.makedirs(dest_dirpath, exist_ok=True)
 	modis_session = ModisSession(username=username, password=password)
@@ -322,45 +365,37 @@ def retrieve_MODIS_500m_product(short_name, version, subset_index, start_date, e
 			exit(1)
 		ds: gdal.Dataset = gdal.Open(filepath)
 		#print_modis_structure(ds)
-		tile_ds: gdal.Dataset = gdal.Open(ds.GetSubDatasets()[subset_index][0])
-		tile_meta: {} = tile_ds.GetMetadata_Dict()
-		json_fp = path.join(dest_dirpath, '%s_%s_subset-%s.json' % (short_name, version, subset_index))
-		if not path.exists(json_fp):
-			with open(json_fp, 'w') as fout:
-				print('\t','writing meta data to', json_fp)
-				json.dump(tile_meta, fout, indent='  ')
-		scale_factor = float(tile_meta['scale_factor'])
-		valid_range = [float(n) for n in tile_meta['valid_range'].split(', ')]
-		tile_hori_pos = int(tile_meta['HORIZONTALTILENUMBER'])
-		tile_vert_pos = int(tile_meta['VERTICALTILENUMBER'])
-		tile_data: ndarray = tile_ds.ReadAsArray()
-		## mask and scale
-		tile_data = numpy.ma.array(tile_data, mask=numpy.logical_or(tile_data < valid_range[0], tile_data > valid_range[1])).astype(numpy.float32).filled(numpy.nan) * scale_factor
-		#print('Data shape:',tile_data.shape)
-		# pyplot.imshow(tile_data, aspect='auto')
-		# pyplot.show()
-		## subsample to output array
-		if sample_strat == 'mean':
-			def sample(src_data: ndarray, src_x: int, src_y: int, ssize: int, dest_data: ndarray, dest_x: int, dest_y: int):
-				dest_data[dest_y][dest_x] = numpy.nanmean(src_data[src_y:src_y+ssize,src_x:src_x+ssize])
-		elif sample_strat == 'median':
-			def sample(src_data: ndarray, src_x: int, src_y: int, ssize: int, dest_data: ndarray, dest_x: int, dest_y: int):
-				dest_data[dest_y][dest_x] = numpy.nanmedian(src_data[src_y:src_y+ssize,src_x:src_x+ssize])
-		elif sample_strat == 'mode':
-			def sample(src_data: ndarray, src_x: int, src_y: int, ssize: int, dest_data: ndarray, dest_x: int, dest_y: int):
-				vals, counts = numpy.unique(src_data[src_y:src_y+ssize,src_x:src_x+ssize], return_counts=True)
-				_mode = vals[numpy.argmax(counts)]
-				dest_data[dest_y][dest_x] = _mode
-		else: # nearest
-			def sample(src_data: ndarray, src_x: int, src_y: int, ssize: int, dest_data: ndarray, dest_x: int, dest_y: int):
-				dest_data[dest_y][dest_x] = src_data[src_y][src_x]
-		for y in range(0, tile_size, downsample):
-			dest_y = int((tile_size * tile_vert_pos + y) / downsample)
-			for x in range(0, tile_size, downsample):
-				dest_x = int((tile_size * tile_hori_pos + x) / downsample)
-				if dest_x == output_map.shape[1]: print('(tile_size, tile_vert_pos, tile_hori_pos, downsample, x, y, dest_x, dest_y)',(tile_size, tile_vert_pos, tile_hori_pos, downsample, x, y, dest_x, dest_y));
-				sample(tile_data, x, y, downsample, output_map, dest_x, dest_y)
-		#
+		for i in range(0,len(subset_indices)):
+			subset_index = subset_indices[i]
+			output_map = output_maps[i]
+			tile_ds: gdal.Dataset = gdal.Open(ds.GetSubDatasets()[subset_index][0])
+			tile_meta: {} = tile_ds.GetMetadata_Dict()
+			json_fp = path.join(dest_dirpath, '%s_%s_subset-%s.json' % (short_name, version, subset_index))
+			if not path.exists(json_fp):
+				with open(json_fp, 'w') as fout:
+					print('\t','writing meta data to', json_fp)
+					json.dump(tile_meta, fout, indent='  ')
+			if 'scale_factor' in tile_meta:
+				scale_factor = float(tile_meta['scale_factor'])
+			else:
+				scale_factor = 1
+			valid_range = [float(n) for n in tile_meta['valid_range'].split(', ')]
+			tile_hori_pos = int(tile_meta['HORIZONTALTILENUMBER'])
+			tile_vert_pos = int(tile_meta['VERTICALTILENUMBER'])
+			tile_data_raw: ndarray = tile_ds.ReadAsArray()
+			## mask and scale
+			tile_data = numpy.ma.array(tile_data_raw, mask=numpy.logical_or(tile_data_raw < valid_range[0], tile_data_raw > valid_range[1])).astype(numpy.float32).filled(numpy.nan) * scale_factor
+			del tile_data_raw
+			#print('Data shape:',tile_data.shape)
+			# pyplot.imshow(tile_data, aspect='auto')
+			# pyplot.show()
+			for y in range(0, tile_size, downsample):
+				dest_y = int((tile_size * tile_vert_pos + y) / downsample)
+				for x in range(0, tile_size, downsample):
+					dest_x = int((tile_size * tile_hori_pos + x) / downsample)
+					if dest_x == output_map.shape[1]: print('(tile_size, tile_vert_pos, tile_hori_pos, downsample, x, y, dest_x, dest_y)',(tile_size, tile_vert_pos, tile_hori_pos, downsample, x, y, dest_x, dest_y));
+					sample(tile_data, x, y, downsample, output_map, dest_x, dest_y)
+			#
 		## clean-up to conserve memory and resources for next iteration
 		del tile_data
 		del tile_meta
@@ -372,9 +407,16 @@ def retrieve_MODIS_500m_product(short_name, version, subset_index, start_date, e
 	#GranuleHandler.download_from_granules(granules, modis_session, path='data')
 	print('...Download complete!')
 	if zpickle_file is not None:
-		zpickle(output_map, zpickle_file)
-		print('Saved %s' % zpickle_file)
-	return output_map
+		if len(subset_indices > 1):
+			for subset_index in subset_indices:
+				suffix = str(zpickle_file)[str(zpickle_file).rfind("."):]
+				zf = zpickle_file.replace(suffix, '_%s%s' % (subset_index, suffix))
+				zpickle(output_maps[0], zf)
+				print('Saved %s' % zpickle_file)
+		else:
+			zpickle(output_maps[0], zpickle_file)
+			print('Saved %s' % zpickle_file)
+	return output_maps
 
 def print_modis_structure(dataset: gdal.Dataset):
 	metadata_dict = dict(dataset.GetMetadata_Dict())
