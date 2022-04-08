@@ -7,9 +7,9 @@ Inputs to the calculation:
 * Altitude
 * Annual mean solar flux
 * Annual mean temperature
-* Annual temperature variation (std dev)
+* Annual temperature variation from the mean (1.5x std dev)
 * Annual rainfall total
-* Annual rainfall variation (std dev)
+* Annual rainfall variation from the mean (1.5x std dev)
 
 ## Terrestrial biomes:
 * Swamp/Wetlands (includes estuaries, mangroves, and swamps)

@@ -122,41 +122,27 @@ def main():
 	pyplot.imshow(numpy.ma.masked_array(sample, mask=sample > 17), alpha=0.35, cmap='gist_rainbow')
 	pyplot.gca().invert_yaxis(); pyplot.show()
 
+	surface_mean_temp_zp_path = path.join(data_dir, 'surf_temp_mean_1852m_singrid.pickle.gz')
+	surface_range_temp_zp_path = path.join(data_dir, 'surf_temp_range_1852m_singrid.pickle.gz')
+	if not path.exists(surface_mean_temp_zp_path):
+		LST_zpickle = path.join(data_dir, 'LST_1852m_singrid.pickle.gz')
+		SST_zpickle = path.join(data_dir, 'SST_1852m_singrid.pickle.gz')
+		if not path.exists(LST_zpickle):
+			## TODO: download and process LST
+			LST_1852m_singrid = None
+		else:
+			LST_1852m_singrid = zunpickle(LST_zpickle)
+		if not path.exists(SST_zpickle):
+			## TODO: download and process SST
+			SST_1852m_singrid = None
+		else:
+			SST_1852m_singrid = zunpickle(SST_zpickle)
+		## TODO: merge LST and SST into global ST
+		surface_temp = None
+	else:
+		surface_temp = zunpickle(surface_mean_temp_zp_path)
 
 	exit(1)
-	alt_zip_file = path.join(data_dir, 'NOAA-GLOBE-TOPO_all-tiles.zip')
-	if not path.exists(alt_zip_file):
-		http_download(url='https://www.ngdc.noaa.gov/mgg/topo/DATATILES/elev/all10g.zip', filepath=alt_zip_file)
-	exit(1)
-
-	# GPP
-	count = 0
-	for doy in range(1,365, 8):
-		count += 1
-		dstart = datetime(2015,1,1) + timedelta(days=doy)
-		dend = datetime(2015,1,1) + timedelta(days=doy+8)
-		aq_gpp_map = retrieve_MODIS_500m_product(
-			'MYD17A2H', '006', 0, dstart.isoformat()[:10], dend.isoformat()[:10], data_dir, username, password,
-			downsample=10, sample_strat='mean', delete_files=True, zpickle_file=path.join(data_dir,'GPP-aqua_2015_%s.pickle.gz' % count)
-		)
-		fig, ax = pyplot.subplots(1,1)
-		ax.imshow(aq_gpp_map, aspect='auto')
-		fig.savefig('GPP-aqua_2015_%s.png' % count)
-		pyplot.close(fig)
-		terra_gpp_map = retrieve_MODIS_500m_product(
-			'MOD17A2H', '006', 0, dstart.isoformat()[:10], dend.isoformat()[:10], data_dir, username, password,
-			downsample=10, sample_strat='mean', delete_files=True, zpickle_file=path.join(data_dir,'GPP-terra_2015_%s.pickle.gz' % count)
-		)
-		fig, ax = pyplot.subplots(1, 1)
-		ax.imshow(terra_gpp_map, aspect='auto')
-		fig.savefig('GPP-terra_2015_%s.png' % count)
-		pyplot.close(fig)
-		all_gpp_map = numpy.nanmean(numpy.stack([aq_gpp_map, terra_gpp_map]), axis=0)
-		zpickle(all_gpp_map, path.join(data_dir,'GPP_2015_%s.pickle.gz' % count))
-		fig, ax = pyplot.subplots(1, 1)
-		ax.imshow(all_gpp_map, aspect='auto')
-		fig.savefig('GPP_2015_%s.png' % count)
-		pyplot.close(fig)
 
 	print("...Done!")
 
