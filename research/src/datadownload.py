@@ -130,15 +130,58 @@ def main():
 		LST_rng_zpickle = path.join(data_dir, 'LST_rng_1852m_singrid.pickle.gz')
 		SST_zpickle = path.join(data_dir, 'SST_1852m_singrid.pickle.gz')
 		SST_rng_zpickle = path.join(data_dir, 'SST_rng_1852m_singrid.pickle.gz')
-		if not path.exists(LST_zpickle):
-			## TODO: download and process LST
+		## LST
+		if not path.exists(LST_zpickle) or not path.exists(LST_rng_zpickle):
+			dl_dir = path.join(data_dir, 'MODIS_TERRA')
+			os.makedirs(dl_dir, exist_ok=True)
 			# MOD11A2(L3) is 8-day average LST at 928m resolution tiled sine grid
 			# MOD11C1(L3) is daily LST at 0.05 degree (5km) resolution whole sine grid
 			# https://lpdaac.usgs.gov/documents/715/MOD11_User_Guide_V61.pdf
 			## remember, MODIS data has Y-axis flipped relative to our representation
-			LST_1852m_singrid = None
+			LST_mercator_zpickle = path.join(data_dir, 'LST_5km_mercator_singrid.pickle.gz')
+			LST_mercator_rng_zpickle = path.join(data_dir, 'LST_variance_5km_mercator_singrid.pickle.gz')
+			if not path.exists(LST_mercator_zpickle) or not path.exists(LST_mercator_rng_zpickle):
+				std_aggregate = None
+				for year in [2015]:
+					for doy in range(1, 366):
+						date = datetime(year=year, month=1, day=1) + timedelta(days=doy - 1)
+						date_str = '%s-%s-%s' % (date.year, left_pad(date.month, '0', 2), left_pad(date.day, '0', 2))
+						lst_data: ndarray = numpy.flip(retrieve_MODIS_global_product(
+							'MOD11C1', '006', subset_indices=[0],
+							start_date=date_str, end_date=date_str,
+							dest_dirpath=dl_dir, username=username, password=password,
+							delete_files=doy > 3,
+							dtype=numpy.float32, nodata=numpy.nan,
+							retry_limit=5, retry_delay=10
+						)[0], axis=0) - 273.15
+						lst_data: ndarray = numpy.ma.masked_array(lst_data, lst_data < -200).filled(nan)
+						if std_aggregate is None:
+							std_aggregate = streaming_std_dev_start(shape=lst_data.shape)
+						std_aggregate = streaming_std_dev_update(std_aggregate, lst_data)
+						#imshow(lst_data)
+				(mean, _variance, sampleVariance) = streaming_std_dev_finalize(std_aggregate)
+				del _variance
+				zpickle(mean, LST_mercator_zpickle)
+				zpickle(sampleVariance, LST_mercator_rng_zpickle)
+			else:
+				mean = zunpickle(LST_mercator_zpickle)
+				sampleVariance = zunpickle(LST_mercator_rng_zpickle)
+			# imshow(mean[0::10, 0::10])
+			# imshow(numpy.sqrt(sampleVariance)[0::10, 0::10])
+			LST_1852m_singrid = mercator_to_singrid(up_sample(mean.astype(float32), (10800, 21600)))
+			del mean
+			LST_range_1852m_singrid = mercator_to_singrid(
+				up_sample(1.5 * numpy.sqrt(sampleVariance.astype(float32)), (10800, 21600)))
+			del sampleVariance
+			zpickle(LST_1852m_singrid, LST_zpickle)
+			zpickle(LST_range_1852m_singrid, LST_rng_zpickle)
 		else:
 			LST_1852m_singrid = zunpickle(LST_zpickle)
+			LST_range_1852m_singrid = zunpickle(LST_zpickle)
+		imshow(LST_1852m_singrid[0::10, 0::10])
+		imshow(LST_range_1852m_singrid[0::10, 0::10])
+		exit(1)
+		## SST
 		if not path.exists(SST_zpickle) or not path.exists(SST_rng_zpickle):
 			SST_mercator_zpickle = path.join(data_dir, 'SST_4km_mercator_singrid.pickle.gz')
 			SST_mercator_rng_zpickle = path.join(data_dir, 'SST_variance_4km_mercator_singrid.pickle.gz')
@@ -380,6 +423,75 @@ def download_landcover_for_year(year, http_session):
 				print('.')
 	print('...Download complete!')
 
+
+def retrieve_MODIS_global_product(
+		short_name, version, subset_indices, start_date, end_date,
+		dest_dirpath, username, password,
+		delete_files=False,
+		dtype=numpy.float32, nodata=numpy.nan,
+		retry_limit=5, retry_delay=10
+):
+	## NOTE: y=0 is north, positive y is south direction, x=0 is west, positive x is east direction
+	## NOTE: ndarray dimension order = data[y][x]
+	output_maps: [ndarray] = []
+
+	os.makedirs(dest_dirpath, exist_ok=True)
+	modis_session = ModisSession(username=username, password=password)
+	# Query the MODIS catalog for collections
+	collection_client = CollectionApi(session=modis_session)
+	collections = collection_client.query(short_name=short_name, version=version)
+	granule_client = GranuleApi.from_collection(collections[0], session=modis_session)
+	granules = granule_client.query(start_date=start_date, end_date=end_date)
+	print('Downloading %s from %s to %s to data directory %s...' % (short_name, start_date, end_date, dest_dirpath))
+	for g in granules:
+		# print('links:')
+		# for L in g.links:
+		# 	print('\t',L.href)
+		filename = g.links[0].href[g.links[0].href.rfind('/')+1:]
+		print('\t','downloading ',filename)
+		filepath=path.join(dest_dirpath, filename)
+		if not path.exists(filepath):
+			for attempt in range(0, retry_limit):
+				try:
+					GranuleHandler.download_from_granules(g, modis_session, path=dest_dirpath)
+				except ssl.SSLEOFError as e:
+					print('SSL error while communicating with server:', e, file=sys.stderr)
+					if attempt < retry_limit-1:
+						print('Retrying in %s seconds...' % retry_delay, file=sys.stderr)
+						time.sleep(retry_delay)
+				else:
+					break
+
+		if not path.exists(filepath):
+			print('failed to download %s' % filename)
+			exit(1)
+		ds: gdal.Dataset = gdal.Open(filepath)
+		#print_modis_structure(ds)
+		row=[]
+		for i in range(0,len(subset_indices)):
+			subset_index = subset_indices[i]
+			tile_ds: gdal.Dataset = gdal.Open(ds.GetSubDatasets()[subset_index][0])
+			tile_meta: {} = tile_ds.GetMetadata_Dict()
+			del tile_ds
+			json_fp = path.join(dest_dirpath, '%s_%s_subset-%s.json' % (short_name, version, subset_index))
+			tile_data = extract_data_from_ds(ds, subset_index, metadata_filepath=json_fp, dtype=dtype, nodata=nodata)
+			if len(subset_indices) == 1:
+				output_maps.append(tile_data)
+			else:
+				row.append(tile_data)
+			del tile_data
+			del tile_meta
+			#
+		if len(subset_indices) > 1:
+			output_maps.append(row)
+		## clean-up to conserve memory and resources for next iteration
+		del ds
+		if delete_files:
+			os.remove(filepath)
+			print('\t','extraction complete, file deleted.')
+	#GranuleHandler.download_from_granules(granules, modis_session, path='data')
+	print('...Download complete!')
+	return output_maps
 
 def retrieve_MODIS_500m_product(short_name, version, subset_indices, start_date, end_date, dest_dirpath, username, password,
 								downsample: int = 10, sample_strat='mean', delete_files=False,
