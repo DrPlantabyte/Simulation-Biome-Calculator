@@ -77,7 +77,7 @@ def main():
 	del fao_hydro_map
 	sample = igbp_map[0::10, 0::10]
 	del igbp_map
-	pyplot.imshow(numpy.ma.masked_array(sample, mask=sample > 17), alpha=1, cmap='gist_rainbow'); pyplot.gca().invert_yaxis(); pyplot.show()
+	imshow(numpy.ma.masked_array(sample, mask=sample > 17), cmap='gist_rainbow')
 
 
 	# altitude - https://www.ngdc.noaa.gov/mgg/topo/gltiles.html
@@ -116,7 +116,7 @@ def main():
 		altitude_1852m_singrid = zunpickle(alt_depth_zpickle_filepath)
 
 	print('altitude_1852m_singrid.shape == ',altitude_1852m_singrid.shape)
-	pyplot.imshow(altitude_1852m_singrid[0::10, 0::10], alpha=1, cmap='terrain'); pyplot.gca().invert_yaxis(); pyplot.show()
+	imshow(altitude_1852m_singrid[0::10, 0::10], cmap='terrain')
 
 	# pyplot.imshow(altitude_1852m_singrid[0::10, 0::10], alpha=1, cmap='terrain')
 	# pyplot.imshow(numpy.ma.masked_array(sample, mask=sample > 17), alpha=0.35, cmap='gist_rainbow')
@@ -140,7 +140,6 @@ def main():
 		else:
 			LST_1852m_singrid = zunpickle(LST_zpickle)
 		if not path.exists(SST_zpickle) or not path.exists(SST_rng_zpickle):
-			## TODO: download and process SST
 			# Using MODIS Aqua Level 3 SST Thermal IR  Daily 4km Daytime V2019.0
 			# Sadly, it's not availble with the MODIS download tool, but it does appear to work with plain http
 			# URL format: https://podaac-opendap.jpl.nasa.gov/opendap/allData/modis/L3/aqua/11um/v2019.0/4km/daily/YEAR/DOY/AQUA_MODIS.yyyymmdd.L3m.DAY.SST.sst.4km.nc
@@ -153,10 +152,10 @@ def main():
 			os.makedirs(dl_dir, exist_ok=True)
 			std_aggregate = streaming_std_dev_start(shape=(4320, 8640))
 			for year in [2015]:
-				for doy in range(1,4):
+				for doy in range(1,366):
 					date = datetime(year=year, month=1, day=1)+timedelta(days=doy-1)
 					url = SST_url(year, date.month, date.day)
-					sst_file = 'SST_%s-%s-%s.nc' % (date.year, date.month, date.day)
+					sst_file = path.join(dl_dir, 'SST_%s-%s-%s.nc' % (date.year, date.month, date.day))
 					if not path.exists(sst_file):
 						http_download(url, sst_file)
 					sst_ds: gdal.Dataset = gdal.Open(sst_file)
@@ -165,9 +164,11 @@ def main():
 					sst_data = numpy.flip(extract_data_from_ds(sst_ds, sst_index, dtype=float32, nodata=nan), axis=0)
 					sst_data = sst_data * scale
 					sst_data = numpy.ma.masked_array(sst_data, mask=sst_data<-100).filled(nan)
-					imshow(sst_data[0::10, 0::10])
+					#imshow(sst_data[0::10, 0::10])
 					std_aggregate = streaming_std_dev_update(std_aggregate, sst_data)
-					if doy > 10:
+					del sst_data
+					del sst_ds # <- so stupid that THIS is the way you close the file when using GDAL!
+					if doy > 3:
 						os.remove(sst_file) # delete to save HD space
 			(mean, _variance, sampleVariance) = streaming_std_dev_finalize(std_aggregate)
 			imshow(mean[0::10, 0::10])
@@ -222,24 +223,25 @@ def streaming_std_dev_start(shape, dtype=numpy.float64):
 
 def streaming_std_dev_update(existingAggregate, newValue):
 	(count, mean, M2) = existingAggregate
-	mask = numpy.isfinite(newValue)
-	_newValue = numpy.ma.masked_array(newValue, mask=mask)
-	# _count = numpy.ma.masked_array(count, mask=mask)
-	# _mean = numpy.ma.masked_array(mean, mask=mask)
-	# _M2 = numpy.ma.masked_array(M2, mask=mask)
-	count += numpy.ma.masked_array(numpy.ones_like(count), mask=mask)
-	delta = _newValue - _mean
-	_mean += delta / _count
-	delta2 = _newValue - _mean
-	_M2 += delta * delta2
-	return (numpy.asarray(_count), numpy.asarray(_mean), numpy.asarray(_M2))
+	mask = numpy.logical_not(numpy.isfinite(newValue)) # use mask to avoid changing values where new-val is nan
+	newValue = numpy.ma.masked_array(newValue, mask=mask)
+	count = numpy.ma.masked_array(count, mask=mask)
+	mean = numpy.ma.masked_array(mean, mask=mask)
+	M2 = numpy.ma.masked_array(M2, mask=mask)
+	count += 1
+	delta = newValue - mean
+	mean += delta / count
+	delta2 = newValue - mean
+	M2 += delta * delta2
+	return (numpy.asarray(count), numpy.asarray(mean), numpy.asarray(M2))
 
 def streaming_std_dev_finalize(existingAggregate):
 	(count, mean, M2) = existingAggregate
 	mask = count < 2
+	mean_mask = count <= 0
 	c = numpy.ma.masked_array(count, mask=mask, dtype=float32).filled(nan)
 	(mean, variance, sampleVariance) = (mean, M2 / c, M2 / (c - 1))
-	return (mean, variance, sampleVariance)
+	return (numpy.ma.masked_array(mean, mask=mean_mask).filled(nan), variance, sampleVariance)
 
 def lat_lon_to_singrid_XY(lat_lon, width_height):
 	# X(lat,lon) = (w/2)*(1 + cos(lat)*sin(lon))
