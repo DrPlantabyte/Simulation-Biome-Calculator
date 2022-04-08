@@ -56,9 +56,13 @@ def main():
 			downsample = 4, sample_strat = 'mode', delete_files = True,
 			zpickle_file = None, retry_limit = 5, retry_delay = 10
 		)
-		igbp_map = maps[0]
-		fao_lccs_map = maps[1]
-		fao_hydro_map = maps[2]
+		igbp_map = numpy.flip(maps[0], axis=0)
+		maps[0] = None # let the GC free up some memory
+		fao_lccs_map = numpy.flip(maps[1], axis=0)
+		maps[1] = None
+		fao_hydro_map = numpy.flip(maps[2], axis=0)
+		maps[2] = None
+		del maps
 		zpickle(igbp_map, modis_igbp_picklepath)
 		zpickle(fao_lccs_map, modis_faolccs_picklepath)
 		zpickle(fao_hydro_map, modis_faohydro_picklepath)
@@ -71,7 +75,7 @@ def main():
 	print('fao_hydro_map.shape == ', fao_hydro_map.shape, ' dtype == ', fao_hydro_map.dtype)
 	del fao_lccs_map
 	del fao_hydro_map
-	sample = numpy.flip(igbp_map[0::10, 0::10], axis=0)
+	sample = igbp_map[0::10, 0::10]
 	del igbp_map
 	pyplot.imshow(numpy.ma.masked_array(sample, mask=sample > 17), alpha=1, cmap='gist_rainbow'); pyplot.gca().invert_yaxis(); pyplot.show()
 
