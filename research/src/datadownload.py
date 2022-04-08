@@ -118,25 +118,72 @@ def main():
 	print('altitude_1852m_singrid.shape == ',altitude_1852m_singrid.shape)
 	pyplot.imshow(altitude_1852m_singrid[0::10, 0::10], alpha=1, cmap='terrain'); pyplot.gca().invert_yaxis(); pyplot.show()
 
-	pyplot.imshow(altitude_1852m_singrid[0::10, 0::10], alpha=1, cmap='terrain')
-	pyplot.imshow(numpy.ma.masked_array(sample, mask=sample > 17), alpha=0.35, cmap='gist_rainbow')
-	pyplot.gca().invert_yaxis(); pyplot.show()
+	# pyplot.imshow(altitude_1852m_singrid[0::10, 0::10], alpha=1, cmap='terrain')
+	# pyplot.imshow(numpy.ma.masked_array(sample, mask=sample > 17), alpha=0.35, cmap='gist_rainbow')
+	# pyplot.gca().invert_yaxis(); pyplot.show()
 
 	surface_mean_temp_zp_path = path.join(data_dir, 'surf_temp_mean_1852m_singrid.pickle.gz')
-	surface_range_temp_zp_path = path.join(data_dir, 'surf_temp_range_1852m_singrid.pickle.gz')
+	surface_variation_temp_zp_path = path.join(data_dir, 'surf_temp_var_1852m_singrid.pickle.gz')
+	# variation = mean +/- 1.5 std dev
 	if not path.exists(surface_mean_temp_zp_path):
 		LST_zpickle = path.join(data_dir, 'LST_1852m_singrid.pickle.gz')
+		LST_rng_zpickle = path.join(data_dir, 'LST_rng_1852m_singrid.pickle.gz')
 		SST_zpickle = path.join(data_dir, 'SST_1852m_singrid.pickle.gz')
+		SST_rng_zpickle = path.join(data_dir, 'SST_rng_1852m_singrid.pickle.gz')
 		if not path.exists(LST_zpickle):
 			## TODO: download and process LST
+			# MOD11A2(L3) is 8-day average LST at 928m resolution tiled sine grid
+			# MOD11C1(L3) is daily LST at 0.05 degree (5km) resolution whole sine grid
+			# https://lpdaac.usgs.gov/documents/715/MOD11_User_Guide_V61.pdf
+			## remember, MODIS data has Y-axis flipped relative to our representation
 			LST_1852m_singrid = None
 		else:
 			LST_1852m_singrid = zunpickle(LST_zpickle)
-		if not path.exists(SST_zpickle):
+		if not path.exists(SST_zpickle) or not path.exists(SST_rng_zpickle):
 			## TODO: download and process SST
-			SST_1852m_singrid = None
+			# Using MODIS Aqua Level 3 SST Thermal IR  Daily 4km Daytime V2019.0
+			# Sadly, it's not availble with the MODIS download tool, but it does appear to work with plain http
+			# URL format: https://podaac-opendap.jpl.nasa.gov/opendap/allData/modis/L3/aqua/11um/v2019.0/4km/daily/YEAR/DOY/AQUA_MODIS.yyyymmdd.L3m.DAY.SST.sst.4km.nc
+			def SST_url(year, month, day):
+				doy = left_pad((datetime(year=year, month=month, day=day) - datetime(year=year-1, month=12, day=31)).days, '0', 3)
+				return 'https://podaac-opendap.jpl.nasa.gov/opendap/allData/modis/L3/aqua/11um/v2019.0/4km/daily/%s/%s/AQUA_MODIS.%s%s%s.L3m.DAY.SST.sst.4km.nc' % (
+					year, doy, year, left_pad(month, '0', 2), left_pad(day, '0', 2)
+				)
+			dl_dir = path.join(data_dir, 'MODIS_AQUA')
+			os.makedirs(dl_dir, exist_ok=True)
+			std_aggregate = streaming_std_dev_start(shape=(4320, 8640))
+			for year in [2015]:
+				for doy in range(1,4):
+					date = datetime(year=year, month=1, day=1)+timedelta(days=doy-1)
+					url = SST_url(year, date.month, date.day)
+					sst_file = 'SST_%s-%s-%s.nc' % (date.year, date.month, date.day)
+					if not path.exists(sst_file):
+						http_download(url, sst_file)
+					sst_ds: gdal.Dataset = gdal.Open(sst_file)
+					sst_index = 0
+					scale = 0.0049999999
+					sst_data = numpy.flip(extract_data_from_ds(sst_ds, sst_index, dtype=float32, nodata=nan), axis=0)
+					sst_data = sst_data * scale
+					sst_data = numpy.ma.masked_array(sst_data, mask=sst_data<-100).filled(nan)
+					imshow(sst_data[0::10, 0::10])
+					std_aggregate = streaming_std_dev_update(std_aggregate, sst_data)
+					if doy > 10:
+						os.remove(sst_file) # delete to save HD space
+			(mean, _variance, sampleVariance) = streaming_std_dev_finalize(std_aggregate)
+			imshow(mean[0::10, 0::10])
+			imshow(numpy.sqrt(sampleVariance)[0::10, 0::10])
+			del _variance
+			SST_1852m_singrid = mercator_to_singrid(up_sample(mean.astype(float32), (10800, 21600)))
+			del mean
+			SST_range_1852m_singrid = mercator_to_singrid(up_sample(1.5 * numpy.sqrt(sampleVariance.astype(float32)), (10800, 21600)))
+			del sampleVariance
+			zpickle(SST_1852m_singrid, SST_zpickle)
+			zpickle(SST_range_1852m_singrid, SST_rng_zpickle)
 		else:
 			SST_1852m_singrid = zunpickle(SST_zpickle)
+			SST_range_1852m_singrid = zunpickle(SST_rng_zpickle)
+		imshow(SST_1852m_singrid[0::10, 0::10])
+		imshow(SST_range_1852m_singrid[0::10, 0::10])
 		## TODO: merge LST and SST into global ST
 		surface_temp = None
 	else:
@@ -145,6 +192,11 @@ def main():
 	exit(1)
 
 	print("...Done!")
+
+def imshow(img: ndarray, cmap='gist_rainbow'):
+	pyplot.imshow(img, alpha=1, cmap=cmap)
+	pyplot.gca().invert_yaxis()
+	pyplot.show()
 
 def zpickle(obj, filepath):
 	print('Pickling %s with gzip compression...' % filepath)
@@ -161,6 +213,33 @@ def zunpickle(filepath):
 			return pickle.load(zin)
 	else:
 		return None
+
+def streaming_std_dev_start(shape, dtype=numpy.float64):
+	count = numpy.zeros(shape, dtype=numpy.int32)
+	mean = numpy.zeros(shape, dtype=dtype)
+	M2 = numpy.zeros(shape, dtype=dtype)
+	return (count, mean, M2)
+
+def streaming_std_dev_update(existingAggregate, newValue):
+	(count, mean, M2) = existingAggregate
+	mask = numpy.isfinite(newValue)
+	_newValue = numpy.ma.masked_array(newValue, mask=mask)
+	# _count = numpy.ma.masked_array(count, mask=mask)
+	# _mean = numpy.ma.masked_array(mean, mask=mask)
+	# _M2 = numpy.ma.masked_array(M2, mask=mask)
+	count += numpy.ma.masked_array(numpy.ones_like(count), mask=mask)
+	delta = _newValue - _mean
+	_mean += delta / _count
+	delta2 = _newValue - _mean
+	_M2 += delta * delta2
+	return (numpy.asarray(_count), numpy.asarray(_mean), numpy.asarray(_M2))
+
+def streaming_std_dev_finalize(existingAggregate):
+	(count, mean, M2) = existingAggregate
+	mask = count < 2
+	c = numpy.ma.masked_array(count, mask=mask, dtype=float32).filled(nan)
+	(mean, variance, sampleVariance) = (mean, M2 / c, M2 / (c - 1))
+	return (mean, variance, sampleVariance)
 
 def lat_lon_to_singrid_XY(lat_lon, width_height):
 	# X(lat,lon) = (w/2)*(1 + cos(lat)*sin(lon))
@@ -199,6 +278,13 @@ def singrid_mask(width_height) -> ndarray:
 		row_data = numpy.linspace(0,1,int(w))-0.5
 		mask[row] = numpy.logical_and(row_data >= left, row_data <= right)
 	return mask
+
+def up_sample(src: ndarray, dst_shape) -> ndarray:
+	# increase number of pixels
+	cols = numpy.arange(dst_shape[1]) * src.shape[1] // dst_shape[1]
+	rows = numpy.arange(dst_shape[0]) * src.shape[0] // dst_shape[0]
+	output = src.take(numpy.outer(rows,src.shape[1]) + cols)
+	return output
 
 def sub_sample(src: ndarray, dst_shape, subsample_strat='mean') -> ndarray:
 	if not (subsample_strat == 'mean' or subsample_strat == 'median' or subsample_strat == 'mode' or subsample_strat == 'nearest'):
@@ -365,22 +451,11 @@ def retrieve_MODIS_500m_product(short_name, version, subset_indices, start_date,
 			output_map = output_maps[i]
 			tile_ds: gdal.Dataset = gdal.Open(ds.GetSubDatasets()[subset_index][0])
 			tile_meta: {} = tile_ds.GetMetadata_Dict()
+			del tile_ds
 			json_fp = path.join(dest_dirpath, '%s_%s_subset-%s.json' % (short_name, version, subset_index))
-			if not path.exists(json_fp):
-				with open(json_fp, 'w') as fout:
-					print('\t','writing meta data to', json_fp)
-					json.dump(tile_meta, fout, indent='  ')
-			if 'scale_factor' in tile_meta:
-				scale_factor = float(tile_meta['scale_factor'])
-			else:
-				scale_factor = 1
-			valid_range = [float(n) for n in tile_meta['valid_range'].split(', ')]
 			tile_hori_pos = int(tile_meta['HORIZONTALTILENUMBER'])
 			tile_vert_pos = int(tile_meta['VERTICALTILENUMBER'])
-			tile_data_raw: ndarray = tile_ds.ReadAsArray()
-			## mask and scale
-			tile_data = numpy.ma.array(tile_data_raw, mask=numpy.logical_or(tile_data_raw < valid_range[0], tile_data_raw > valid_range[1])).astype(numpy.float32).filled(numpy.nan) * scale_factor
-			del tile_data_raw
+			tile_data = extract_data_from_ds(ds, subset_index, metadata_filepath=json_fp)
 			#print('Data shape:',tile_data.shape)
 			# pyplot.imshow(tile_data, aspect='auto')
 			# pyplot.show()
@@ -388,13 +463,12 @@ def retrieve_MODIS_500m_product(short_name, version, subset_indices, start_date,
 				dest_y = int((tile_size * tile_vert_pos + y) / downsample)
 				for x in range(0, tile_size, downsample):
 					dest_x = int((tile_size * tile_hori_pos + x) / downsample)
-					if dest_x == output_map.shape[1]: print('(tile_size, tile_vert_pos, tile_hori_pos, downsample, x, y, dest_x, dest_y)',(tile_size, tile_vert_pos, tile_hori_pos, downsample, x, y, dest_x, dest_y));
+					#if dest_x == output_map.shape[1]: print('(tile_size, tile_vert_pos, tile_hori_pos, downsample, x, y, dest_x, dest_y)',(tile_size, tile_vert_pos, tile_hori_pos, downsample, x, y, dest_x, dest_y));
 					sample(tile_data, x, y, downsample, output_map, dest_x, dest_y)
 			#
 		## clean-up to conserve memory and resources for next iteration
 		del tile_data
 		del tile_meta
-		del tile_ds
 		del ds
 		if delete_files:
 			os.remove(filepath)
@@ -413,12 +487,41 @@ def retrieve_MODIS_500m_product(short_name, version, subset_indices, start_date,
 			print('Saved %s' % zpickle_file)
 	return output_maps
 
+def extract_data_from_ds(ds: gdal.Dataset, subset_index: int, valid_range=(-numpy.inf, numpy.inf), dtype=numpy.float32, nodata=numpy.nan, metadata_filepath=None) -> ndarray:
+	tile_ds: gdal.Dataset = gdal.Open(ds.GetSubDatasets()[subset_index][0])
+	tile_meta: {} = tile_ds.GetMetadata_Dict()
+	if metadata_filepath is not None:
+		json_fp = metadata_filepath
+		if not path.exists(json_fp):
+			with open(json_fp, 'w') as fout:
+				print('\t', 'writing meta data to', json_fp)
+				json.dump(tile_meta, fout, indent='  ')
+	if 'scale_factor' in tile_meta:
+		scale_factor = float(tile_meta['scale_factor'])
+	else:
+		scale_factor = 1
+	if valid_range is None:
+		if 'valid_range' in tile_meta:
+			valid_range = [float(n) for n in tile_meta['valid_range'].split(', ')]
+		else:
+			valid_range = [-numpy.inf, numpy.inf]
+	tile_data_raw: ndarray = tile_ds.ReadAsArray()
+	## mask and scale
+	tile_data = numpy.ma.array(
+		tile_data_raw,
+		mask=numpy.logical_or(tile_data_raw < valid_range[0],tile_data_raw > valid_range[1])
+	).astype(dtype).filled(nodata) * scale_factor
+	del tile_data_raw
+	del tile_ds
+	return tile_data
+
+
 def print_modis_structure(dataset: gdal.Dataset):
 	metadata_dict = dict(dataset.GetMetadata_Dict())
 	metadata_dict['Subsets'] = dataset.GetSubDatasets()
 	print(dataset.GetDescription(), json.dumps(metadata_dict, indent="  "))
 
-def http_download(url, filepath):
+def http_download(url, filepath, show_dots=False):
 	print('Downloading %s to %s...' % (url, filepath))
 	http_session = requests.session()
 	with http_session.get(url, stream=True) as r:
@@ -427,7 +530,8 @@ def http_download(url, filepath):
 		with open(filepath, 'wb') as f:
 			for chunk in r.iter_content(chunk_size=2 ** 20): # 1 MB chunks
 				f.write(chunk)
-				print('.', end='')
+				if show_dots:
+					print('.', end='')
 		print()
 	print('...Download complete!')
 
@@ -459,6 +563,12 @@ def get_landcover_URL_for_year(year):
 	html = requests.get('https://e4ftl01.cr.usgs.gov/MOTA/MCD12C1.006/%s.01.01/' % year).content.decode('UTF-8')
 	filename = re.findall('MCD12C1.*?\\.hdf', html)[0]
 	return 'https://e4ftl01.cr.usgs.gov/MOTA/MCD12C1.006/%s.01.01/%s' % (year, filename)
+
+def left_pad(t, p, n):
+	s = str(t)
+	while len(s) < int(n):
+		s = str(p) + s
+	return s
 
 if __name__ == '__main__':
 	main()
