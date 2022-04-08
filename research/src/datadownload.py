@@ -140,40 +140,48 @@ def main():
 		else:
 			LST_1852m_singrid = zunpickle(LST_zpickle)
 		if not path.exists(SST_zpickle) or not path.exists(SST_rng_zpickle):
+			SST_mercator_zpickle = path.join(data_dir, 'SST_4km_mercator_singrid.pickle.gz')
+			SST_mercator_rng_zpickle = path.join(data_dir, 'SST_variance_4km_mercator_singrid.pickle.gz')
 			# Using MODIS Aqua Level 3 SST Thermal IR  Daily 4km Daytime V2019.0
 			# Sadly, it's not availble with the MODIS download tool, but it does appear to work with plain http
 			# URL format: https://podaac-opendap.jpl.nasa.gov/opendap/allData/modis/L3/aqua/11um/v2019.0/4km/daily/YEAR/DOY/AQUA_MODIS.yyyymmdd.L3m.DAY.SST.sst.4km.nc
-			def SST_url(year, month, day):
-				doy = left_pad((datetime(year=year, month=month, day=day) - datetime(year=year-1, month=12, day=31)).days, '0', 3)
-				return 'https://podaac-opendap.jpl.nasa.gov/opendap/allData/modis/L3/aqua/11um/v2019.0/4km/daily/%s/%s/AQUA_MODIS.%s%s%s.L3m.DAY.SST.sst.4km.nc' % (
-					year, doy, year, left_pad(month, '0', 2), left_pad(day, '0', 2)
-				)
-			dl_dir = path.join(data_dir, 'MODIS_AQUA')
-			os.makedirs(dl_dir, exist_ok=True)
-			std_aggregate = streaming_std_dev_start(shape=(4320, 8640))
-			for year in [2015]:
-				for doy in range(1,366):
-					date = datetime(year=year, month=1, day=1)+timedelta(days=doy-1)
-					url = SST_url(year, date.month, date.day)
-					sst_file = path.join(dl_dir, 'SST_%s-%s-%s.nc' % (date.year, date.month, date.day))
-					if not path.exists(sst_file):
-						http_download(url, sst_file)
-					sst_ds: gdal.Dataset = gdal.Open(sst_file)
-					sst_index = 0
-					scale = 0.0049999999
-					sst_data = numpy.flip(extract_data_from_ds(sst_ds, sst_index, dtype=float32, nodata=nan), axis=0)
-					sst_data = sst_data * scale
-					sst_data = numpy.ma.masked_array(sst_data, mask=sst_data<-100).filled(nan)
-					#imshow(sst_data[0::10, 0::10])
-					std_aggregate = streaming_std_dev_update(std_aggregate, sst_data)
-					del sst_data
-					del sst_ds # <- so stupid that THIS is the way you close the file when using GDAL!
-					if doy > 3:
-						os.remove(sst_file) # delete to save HD space
-			(mean, _variance, sampleVariance) = streaming_std_dev_finalize(std_aggregate)
+			if not path.exists(SST_mercator_zpickle) or not path.exists(SST_mercator_rng_zpickle):
+				def SST_url(year, month, day):
+					doy = left_pad((datetime(year=year, month=month, day=day) - datetime(year=year-1, month=12, day=31)).days, '0', 3)
+					return 'https://podaac-opendap.jpl.nasa.gov/opendap/allData/modis/L3/aqua/11um/v2019.0/4km/daily/%s/%s/AQUA_MODIS.%s%s%s.L3m.DAY.SST.sst.4km.nc' % (
+						year, doy, year, left_pad(month, '0', 2), left_pad(day, '0', 2)
+					)
+				dl_dir = path.join(data_dir, 'MODIS_AQUA')
+				os.makedirs(dl_dir, exist_ok=True)
+				std_aggregate = streaming_std_dev_start(shape=(4320, 8640))
+				for year in [2015]:
+					for doy in range(1,366):
+						date = datetime(year=year, month=1, day=1)+timedelta(days=doy-1)
+						url = SST_url(year, date.month, date.day)
+						sst_file = path.join(dl_dir, 'SST_%s-%s-%s.nc' % (date.year, date.month, date.day))
+						if not path.exists(sst_file):
+							http_download(url, sst_file)
+						sst_ds: gdal.Dataset = gdal.Open(sst_file)
+						sst_index = 0
+						scale = 0.0049999999
+						sst_data = numpy.flip(extract_data_from_ds(sst_ds, sst_index, dtype=float32, nodata=nan), axis=0)
+						sst_data = sst_data * scale
+						sst_data = numpy.ma.masked_array(sst_data, mask=sst_data<-100).filled(nan)
+						#imshow(sst_data[0::10, 0::10])
+						std_aggregate = streaming_std_dev_update(std_aggregate, sst_data)
+						del sst_data
+						del sst_ds # <- so stupid that THIS is the way you close the file when using GDAL!
+						if doy > 3:
+							os.remove(sst_file) # delete to save HD space
+				(mean, _variance, sampleVariance) = streaming_std_dev_finalize(std_aggregate)
+				del _variance
+				zpickle(mean, SST_mercator_zpickle)
+				zpickle(sampleVariance, SST_mercator_rng_zpickle)
+			else:
+				mean = zunpickle(SST_mercator_zpickle)
+				sampleVariance = zunpickle(SST_mercator_rng_zpickle)
 			imshow(mean[0::10, 0::10])
 			imshow(numpy.sqrt(sampleVariance)[0::10, 0::10])
-			del _variance
 			SST_1852m_singrid = mercator_to_singrid(up_sample(mean.astype(float32), (10800, 21600)))
 			del mean
 			SST_range_1852m_singrid = mercator_to_singrid(up_sample(1.5 * numpy.sqrt(sampleVariance.astype(float32)), (10800, 21600)))
