@@ -237,13 +237,17 @@ def main():
 		imshow(SST_1852m_singrid[0::10, 0::10])
 		imshow(SST_range_1852m_singrid[0::10, 0::10])
 		## TODO: merge LST and SST into global ST
-		surface_temp = None
+		mean_surface_temp = compose(LST_1852m_singrid, SST_1852m_singrid)
 	else:
-		surface_temp = zunpickle(surface_mean_temp_zp_path)
+		mean_surface_temp = zunpickle(surface_mean_temp_zp_path)
 
 	exit(1)
 
 	print("...Done!")
+
+def compose(primary: ndarray, secondary: ndarray) -> ndarray:
+	# TODO
+	pass
 
 def imshow(img: ndarray, cmap='gist_rainbow'):
 	pyplot.imshow(img, alpha=1, cmap=cmap)
