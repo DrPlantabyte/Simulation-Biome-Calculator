@@ -71,8 +71,9 @@ def main():
 	print('fao_hydro_map.shape == ', fao_hydro_map.shape, ' dtype == ', fao_hydro_map.dtype)
 	del fao_lccs_map
 	del fao_hydro_map
-	pyplot.imshow(igbp_map[0::10, 0::10], alpha=1); pyplot.gca().invert_yaxis(); pyplot.show()
+	sample = numpy.flip(igbp_map[0::10, 0::10], axis=0)
 	del igbp_map
+	pyplot.imshow(numpy.ma.masked_array(sample, mask=sample > 17), alpha=1, cmap='gist_rainbow'); pyplot.gca().invert_yaxis(); pyplot.show()
 
 
 	# altitude - https://www.ngdc.noaa.gov/mgg/topo/gltiles.html
@@ -111,7 +112,11 @@ def main():
 		altitude_1852m_singrid = zunpickle(alt_depth_zpickle_filepath)
 
 	print('altitude_1852m_singrid.shape == ',altitude_1852m_singrid.shape)
-	pyplot.imshow(altitude_1852m_singrid[0::10, 0::10], alpha=1); pyplot.gca().invert_yaxis(); pyplot.show()
+	pyplot.imshow(altitude_1852m_singrid[0::10, 0::10], alpha=1, cmap='terrain'); pyplot.gca().invert_yaxis(); pyplot.show()
+
+	pyplot.imshow(altitude_1852m_singrid[0::10, 0::10], alpha=1, cmap='terrain')
+	pyplot.imshow(numpy.ma.masked_array(sample, mask=sample > 17), alpha=0.35, cmap='gist_rainbow')
+	pyplot.gca().invert_yaxis(); pyplot.show()
 
 
 	exit(1)
