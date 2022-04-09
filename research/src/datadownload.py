@@ -143,7 +143,14 @@ def main():
 			if not path.exists(LST_mercator_zpickle) or not path.exists(LST_mercator_rng_zpickle):
 				std_aggregate = None
 				for year in [2015]:
-					for doy in range(1, 366):
+					data_saver = path.join(dl_dir, 'LST_stats_agg.pickle.gz')
+					doy_saver = path.join(dl_dir, 'LST_doy.pickle.gz')
+					if path.exists(doy_saver) and path.exists(data_saver):
+						doy_start = int(zunpickle(doy_saver))
+						std_aggregate = zunpickle(data_saver)
+					else:
+						doy_start = 1
+					for doy in range(doy_start, 366):
 						date = datetime(year=year, month=1, day=1) + timedelta(days=doy - 1)
 						date_str = '%s-%s-%s' % (date.year, left_pad(date.month, '0', 2), left_pad(date.day, '0', 2))
 						lst_data: ndarray = numpy.flip(retrieve_MODIS_global_product(
@@ -158,6 +165,8 @@ def main():
 						if std_aggregate is None:
 							std_aggregate = streaming_std_dev_start(shape=lst_data.shape)
 						std_aggregate = streaming_std_dev_update(std_aggregate, lst_data)
+						zpickle(std_aggregate, data_saver)
+						zpickle(doy+1, doy_saver)
 						#imshow(lst_data)
 				(mean, _variance, sampleVariance) = streaming_std_dev_finalize(std_aggregate)
 				del _variance
@@ -236,18 +245,26 @@ def main():
 			SST_range_1852m_singrid = zunpickle(SST_rng_zpickle)
 		imshow(SST_1852m_singrid[0::10, 0::10])
 		imshow(SST_range_1852m_singrid[0::10, 0::10])
-		## TODO: merge LST and SST into global ST
 		mean_surface_temp = compose(LST_1852m_singrid, SST_1852m_singrid)
+		del LST_1852m_singrid
+		del SST_1852m_singrid
+		zpickle(mean_surface_temp, surface_mean_temp_zp_path)
+		variation_surface_temp = compose(LST_range_1852m_singrid, SST_range_1852m_singrid)
+		del LST_range_1852m_singrid
+		del SST_range_1852m_singrid
+		zpickle(variation_surface_temp, surface_variation_temp_zp_path)
 	else:
 		mean_surface_temp = zunpickle(surface_mean_temp_zp_path)
-
+		variation_surface_temp = zunpickle(surface_variation_temp_zp_path)
+	imshow(mean_surface_temp)
+	imshow(variation_surface_temp)
 	exit(1)
 
 	print("...Done!")
 
 def compose(primary: ndarray, secondary: ndarray) -> ndarray:
-	# TODO
-	pass
+	mask = numpy.logical_not(numpy.isfinite(primary))
+	return numpy.ma.masked_array(primary, mask=mask).filled(secondary)
 
 def imshow(img: ndarray, cmap='gist_rainbow'):
 	pyplot.imshow(img, alpha=1, cmap=cmap)
