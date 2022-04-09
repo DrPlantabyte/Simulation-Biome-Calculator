@@ -122,6 +122,7 @@ def main():
 	# pyplot.imshow(numpy.ma.masked_array(sample, mask=sample > 17), alpha=0.35, cmap='gist_rainbow')
 	# pyplot.gca().invert_yaxis(); pyplot.show()
 
+	# temperature (C)
 	surface_mean_temp_zp_path = path.join(data_dir, 'surf_temp_mean_1852m_singrid.pickle.gz')
 	surface_variation_temp_zp_path = path.join(data_dir, 'surf_temp_var_1852m_singrid.pickle.gz')
 	# variation = mean +/- 1.5 std dev
@@ -153,14 +154,19 @@ def main():
 					for doy in range(doy_start, 366):
 						date = datetime(year=year, month=1, day=1) + timedelta(days=doy - 1)
 						date_str = '%s-%s-%s' % (date.year, left_pad(date.month, '0', 2), left_pad(date.day, '0', 2))
-						lst_data: ndarray = numpy.flip(retrieve_MODIS_global_product(
-							'MOD11C1', '006', subset_indices=[0],
-							start_date=date_str, end_date=date_str,
-							dest_dirpath=dl_dir, username=username, password=password,
-							delete_files=doy > 3,
-							dtype=numpy.float32, nodata=numpy.nan,
-							retry_limit=5, retry_delay=10
-						)[0], axis=0) - 273.15
+						retries = 3
+						while (retries := retries-1) > 0:
+							try:
+								lst_data: ndarray = numpy.flip(retrieve_MODIS_global_product(
+									'MOD11C1', '006', subset_indices=[0],
+									start_date=date_str, end_date=date_str,
+									dest_dirpath=dl_dir, username=username, password=password,
+									delete_files=doy > 3,
+									dtype=numpy.float32, nodata=numpy.nan,
+									retry_limit=5, retry_delay=10
+								)[0], axis=0) - 273.15
+							except Exception as e:
+								print(e, file=sys.stderr)
 						lst_data: ndarray = numpy.ma.masked_array(lst_data, lst_data < -200).filled(nan)
 						if std_aggregate is None:
 							std_aggregate = streaming_std_dev_start(shape=lst_data.shape)
@@ -259,7 +265,20 @@ def main():
 	imshow(mean_surface_temp)
 	imshow(variation_surface_temp)
 	exit(1)
-
+	# rainfall (mm/year)
+	# variation = mean +/- 1.5 std dev
+	## https://disc.gsfc.nasa.gov/datasets/GPM_3IMERGDF_06/summary?keywords=%22IMERG%20final%22
+	## requires you to add NASA GESDISC DATA ARCHIVE to your list of approved apps in EarthData
+	annual_precip_mean_zp_path = path.join(data_dir, 'precip_mean_1852m_singrid.pickle.gz')
+	annual_precip_variation_zp_path = path.join(data_dir, 'precip_var_1852m_singrid.pickle.gz')
+	if path.exists(annual_precip_mean_zp_path) and path.exists(annual_precip_variation_zp_path):
+		mean_annual_precip = zunpickle(annual_precip_mean_zp_path)
+		range_annual_precip = zunpickle(annual_precip_variation_zp_path)
+	else:
+		dl_dir = path.join(data_dir, 'GPM-IMERG-final')
+		os.makedirs(dl_dir, exist_ok=True)
+		gpm_mean_zp = path.join(dl_dir, '')
+	download_GPM_final_product(year, month, day, dest_dirpath, username, password)
 	print("...Done!")
 
 def compose(primary: ndarray, secondary: ndarray) -> ndarray:
@@ -663,6 +682,28 @@ def print_modis_structure(dataset: gdal.Dataset):
 	metadata_dict = dict(dataset.GetMetadata_Dict())
 	metadata_dict['Subsets'] = dataset.GetSubDatasets()
 	print(dataset.GetDescription(), json.dumps(metadata_dict, indent="  "))
+
+
+def download_GPM_final_product(year, month, day, dest_dirpath, username, password):
+	# wget --load-cookies /.urs_cookies --save-cookies /root/.urs_cookies --auth-no-challenge=on --user=your_user_name --ask-password --content-disposition -i <url text file>
+	http_session = requests.session()
+	src_url = 'https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/GPM_3IMERGDF.06/%s/%s/3B-DAY.MS.MRG.3IMERG.%s%s%s-S000000-E235959.V06.nc4' % (
+			year, left_pad(month, '0', 2), year, left_pad(month, '0', 2), left_pad(day, '0', 2)
+	)
+	http_session.auth = (username, password)
+	# note: URL gets redirected
+	redirect = http_session.request('get', src_url)
+	filename = src_url.split('/')[-1]
+	dest_filepath = path.join(dest_dirpath, filename)
+	# NOTE the stream=True parameter below
+	print('Downloading %s to %s...' % (redirect.url, dest_filepath))
+	with http_session.get(redirect.url, auth=(username, password), stream=True) as r:
+		r.raise_for_status()
+		with open(dest_filepath, 'wb') as f:
+			for chunk in r.iter_content(chunk_size=1048576):
+				f.write(chunk)
+	print('...Download complete!')
+
 
 def http_download(url, filepath, show_dots=False):
 	print('Downloading %s to %s...' % (url, filepath))
