@@ -810,10 +810,10 @@ def download_GPM_final_product(year, month, day, dest_dirpath, username, passwor
 	print('...Download complete!')
 	gpm_ds = gdal.Open(dest_filepath)
 	gpm_data = extract_data_from_ds(gpm_ds, subset_index=0, dtype=dtype, nodata=nodata)
+	del gpm_ds
 	if delete_file:
 		os.remove(dest_filepath)
 		print('\t','extraction complete, file deleted.')
-	del gpm_ds
 	return gpm_data
 
 
