@@ -201,7 +201,7 @@ def main():
 			LST_range_1852m_singrid = zunpickle(LST_zpickle)
 		imshow(LST_1852m_singrid[0::10, 0::10])
 		imshow(LST_range_1852m_singrid[0::10, 0::10])
-		
+
 		## SST
 		if not path.exists(SST_zpickle) or not path.exists(SST_rng_zpickle):
 			SST_mercator_zpickle = path.join(data_dir, 'SST_4km_mercator_singrid.pickle.gz')
@@ -280,6 +280,11 @@ def main():
 	else:
 		mean_surface_temp = zunpickle(surface_mean_temp_zp_path)
 		variation_surface_temp = zunpickle(surface_variation_temp_zp_path)
+	patch_data(mean_surface_temp)
+	zpickle(mean_surface_temp, surface_mean_temp_zp_path)
+	patch_data(variation_surface_temp)
+	zpickle(variation_surface_temp, surface_variation_temp_zp_path)
+	imshow(mean_surface_temp)
 	imshow(mean_surface_temp)
 	imshow(variation_surface_temp)
 	exit(1)
@@ -354,6 +359,26 @@ def main():
 		zpickle(range_annual_precip, annual_precip_variation_zp_path)
 
 	print("...Done!")
+
+def patch_data(data: ndarray):
+	# fix screw-ups
+	## mask singrid
+	x_offset = data.shape[1] / 2
+	for src_y in range(data.shape[0]):
+		dst_y = src_y
+		lat_rad = ((src_y / (data.shape[0])) - 0.5) * numpy.pi
+		cos_lat = numpy.cos(lat_rad)
+		circ = data.shape[1] * cos_lat
+		if cos_lat < 0.66667:
+			data[dst_y][0:int(x_offset - (circ / 2))] = nan
+			data[dst_y][int(x_offset - (circ / 2) + int(max(1, circ))):] = nan
+		else:
+			## roughly 1:1 srd to dest
+			resample = (numpy.linspace(0, 1, int(circ + 0.5) - 1) * (data.shape[1] - 1)).astype(numpy.int32)
+			L_margin = int((data.shape[1] - len(resample)) / 2)
+			data[dst_y][0:L_margin] = nan
+			data[dst_y][L_margin + len(resample):] = nan
+
 
 def compose(primary: ndarray, secondary: ndarray) -> ndarray:
 	mask = numpy.logical_not(numpy.isfinite(primary))
