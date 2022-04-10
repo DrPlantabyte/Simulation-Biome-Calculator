@@ -198,7 +198,7 @@ def main():
 			zpickle(LST_range_1852m_singrid, LST_rng_zpickle)
 		else:
 			LST_1852m_singrid = zunpickle(LST_zpickle)
-			LST_range_1852m_singrid = zunpickle(LST_zpickle)
+			LST_range_1852m_singrid = zunpickle(LST_rng_zpickle)
 		imshow(LST_1852m_singrid[0::10, 0::10])
 		imshow(LST_range_1852m_singrid[0::10, 0::10])
 
@@ -280,11 +280,8 @@ def main():
 	else:
 		mean_surface_temp = zunpickle(surface_mean_temp_zp_path)
 		variation_surface_temp = zunpickle(surface_variation_temp_zp_path)
-	patch_data(mean_surface_temp)
 	zpickle(mean_surface_temp, surface_mean_temp_zp_path)
-	patch_data(variation_surface_temp)
 	zpickle(variation_surface_temp, surface_variation_temp_zp_path)
-	imshow(mean_surface_temp)
 	imshow(mean_surface_temp)
 	imshow(variation_surface_temp)
 	exit(1)
@@ -360,9 +357,10 @@ def main():
 
 	print("...Done!")
 
-def patch_data(data: ndarray):
+def patch_data(zpath):
 	# fix screw-ups
 	## mask singrid
+	data = zunpickle(zpath)
 	x_offset = data.shape[1] / 2
 	for src_y in range(data.shape[0]):
 		dst_y = src_y
@@ -378,6 +376,8 @@ def patch_data(data: ndarray):
 			L_margin = int((data.shape[1] - len(resample)) / 2)
 			data[dst_y][0:L_margin] = nan
 			data[dst_y][L_margin + len(resample):] = nan
+	zpickle(data, zpath)
+	del data
 
 
 def compose(primary: ndarray, secondary: ndarray) -> ndarray:
