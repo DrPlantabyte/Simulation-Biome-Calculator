@@ -184,10 +184,15 @@ def main():
 				sampleVariance = zunpickle(LST_mercator_rng_zpickle)
 			# imshow(mean[0::10, 0::10])
 			# imshow(numpy.sqrt(sampleVariance)[0::10, 0::10])
-			LST_1852m_singrid = mercator_to_singrid(up_sample(mean.astype(float32), (10800, 21600)))
+			LST_1852m_singrid = mercator_to_singrid(
+				up_sample(mean.astype(float32), (10800, 21600)),
+				dtype=float32, nodata=-1
+			)
 			del mean
 			LST_range_1852m_singrid = mercator_to_singrid(
-				up_sample(1.5 * numpy.sqrt(sampleVariance.astype(float32)), (10800, 21600)))
+				up_sample(1.5 * numpy.sqrt(sampleVariance.astype(float32)), (10800, 21600)),
+				dtype=float32, nodata=-1
+			)
 			del sampleVariance
 			zpickle(LST_1852m_singrid, LST_zpickle)
 			zpickle(LST_range_1852m_singrid, LST_rng_zpickle)
@@ -196,7 +201,7 @@ def main():
 			LST_range_1852m_singrid = zunpickle(LST_zpickle)
 		imshow(LST_1852m_singrid[0::10, 0::10])
 		imshow(LST_range_1852m_singrid[0::10, 0::10])
-		exit(1)
+		
 		## SST
 		if not path.exists(SST_zpickle) or not path.exists(SST_rng_zpickle):
 			SST_mercator_zpickle = path.join(data_dir, 'SST_4km_mercator_singrid.pickle.gz')
@@ -219,7 +224,13 @@ def main():
 						url = SST_url(year, date.month, date.day)
 						sst_file = path.join(dl_dir, 'SST_%s-%s-%s.nc' % (date.year, date.month, date.day))
 						if not path.exists(sst_file):
-							http_download(url, sst_file)
+							retries = 3
+							while (retries := retries - 1) >= 0:
+								try:
+									http_download(url, sst_file)
+									break
+								except Exception as e:
+									print(e, file=sys.stderr)
 						sst_ds: gdal.Dataset = gdal.Open(sst_file)
 						sst_index = 0
 						scale = 0.0049999999
@@ -241,9 +252,15 @@ def main():
 				sampleVariance = zunpickle(SST_mercator_rng_zpickle)
 			imshow(mean[0::10, 0::10])
 			imshow(numpy.sqrt(sampleVariance)[0::10, 0::10])
-			SST_1852m_singrid = mercator_to_singrid(up_sample(mean.astype(float32), (10800, 21600)))
+			SST_1852m_singrid = mercator_to_singrid(
+				up_sample(mean.astype(float32), (10800, 21600)),
+				dtype=float32, nodata=-1
+			)
 			del mean
-			SST_range_1852m_singrid = mercator_to_singrid(up_sample(1.5 * numpy.sqrt(sampleVariance.astype(float32)), (10800, 21600)))
+			SST_range_1852m_singrid = mercator_to_singrid(
+				up_sample(1.5 * numpy.sqrt(sampleVariance.astype(float32)), (10800, 21600)),
+				dtype=float32, nodata=-1
+			)
 			del sampleVariance
 			zpickle(SST_1852m_singrid, SST_zpickle)
 			zpickle(SST_range_1852m_singrid, SST_rng_zpickle)
