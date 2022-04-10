@@ -278,8 +278,64 @@ def main():
 	else:
 		dl_dir = path.join(data_dir, 'GPM-IMERG-final')
 		os.makedirs(dl_dir, exist_ok=True)
-		gpm_mean_zp = path.join(dl_dir, '')
-	download_GPM_final_product(year, month, day, dest_dirpath, username, password)
+		gpm_mean_zp = path.join(dl_dir, 'GPM_mean_annual_precip_0.1deg_mercator.pickle.gz')
+		gpm_var_zp = path.join(dl_dir, 'GPM_variance_annual_precip_0.1deg_mercator.pickle.gz')
+		if path.exists(gpm_mean_zp) and path.exists(gpm_var_zp):
+			gpm_mean_merc = zunpickle(gpm_mean_zp)
+			gpm_var_merc = zunpickle(gpm_var_zp)
+		else:
+			progress_pickle = path.join(dl_dir, 'GPM_progress_year_doy.pickle.gz')
+			if path.exists(progress_pickle):
+				(years, doy_start) = zunpickle(progress_pickle)
+			else:
+				(years, doy_start) = ([2015], 1)
+				zpickle((years, doy_start), progress_pickle)
+			std_aggregate = None
+			for y in range(0,len(years)):
+				year = years[y]
+				data_saver = path.join(dl_dir, 'GPM_stats_agg.pickle.gz')
+				if path.exists(data_saver):
+					std_aggregate = zunpickle(data_saver)
+				for doy in range(doy_start, 4):# 366): # TODO: uncomment
+					date = datetime(year=year, month=1, day=1) + timedelta(days=doy - 1)
+					retries = 3
+					while (retries := retries - 1) > 0:
+						try:
+							gpm_data: ndarray = download_GPM_final_product(
+								year=date.year, month=date.month, day=date.day,
+								dest_dirpath=dl_dir, username=username, password=password,
+								delete_file=doy > 3
+							)
+							imshow(gpm_data)
+							break
+						except Exception as e:
+							print(e, file=sys.stderr)
+					gpm_data: ndarray = numpy.ma.masked_array(gpm_data, mask=gpm_data < 0).filled(nan)
+					# NOTE: GPM data is (lon,lat), not (lat,lon)
+					if std_aggregate is None:
+						std_aggregate = streaming_std_dev_start(shape=gpm_data.shape)
+					std_aggregate = streaming_std_dev_update(std_aggregate, gpm_data)
+					zpickle(std_aggregate, data_saver)
+					zpickle((years, doy+1), progress_pickle)
+				zpickle((years[y+1:], 1), progress_pickle)
+			(gpm_mean_merc, _variance, gpm_var_merc) = streaming_std_dev_finalize(std_aggregate)
+			del _variance
+			imshow(gpm_mean_merc.T)
+			imshow(gpm_var_merc.T)
+			# zpickle(gpm_mean_merc, gpm_mean_zp) # TODO: uncomment
+			# zpickle(gpm_var_merc, gpm_var_zp) # TODO: uncomment
+		mm_per_hr_2_annual = 24*365.24
+		mean_annual_precip = mercator_to_singrid(up_sample(
+			mm_per_hr_2_annual * gpm_mean_merc.T, dst_shape=(10800, 21600)
+		), dtype=float32, nodata=nan)
+		del gpm_mean_merc
+		zpickle(mean_annual_precip, annual_precip_mean_zp_path)
+		range_annual_precip = mercator_to_singrid(up_sample(
+			mm_per_hr_2_annual * 1.5 * numpy.sqrt(gpm_var_merc.T), dst_shape=(10800, 21600)
+		), dtype=float32, nodata=nan)
+		del gpm_var_merc
+		zpickle(range_annual_precip, annual_precip_variation_zp_path)
+
 	print("...Done!")
 
 def compose(primary: ndarray, secondary: ndarray) -> ndarray:
@@ -685,7 +741,7 @@ def print_modis_structure(dataset: gdal.Dataset):
 	print(dataset.GetDescription(), json.dumps(metadata_dict, indent="  "))
 
 
-def download_GPM_final_product(year, month, day, dest_dirpath, username, password):
+def download_GPM_final_product(year, month, day, dest_dirpath, username, password, delete_file=False, dtype=float32, nodata=nan):
 	# wget --load-cookies /.urs_cookies --save-cookies /root/.urs_cookies --auth-no-challenge=on --user=your_user_name --ask-password --content-disposition -i <url text file>
 	http_session = requests.session()
 	src_url = 'https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/GPM_3IMERGDF.06/%s/%s/3B-DAY.MS.MRG.3IMERG.%s%s%s-S000000-E235959.V06.nc4' % (
@@ -704,6 +760,13 @@ def download_GPM_final_product(year, month, day, dest_dirpath, username, passwor
 			for chunk in r.iter_content(chunk_size=1048576):
 				f.write(chunk)
 	print('...Download complete!')
+	gpm_ds = gdal.Open(dest_filepath)
+	gpm_data = extract_data_from_ds(gpm_ds, subset_index=0, dtype=dtype, nodata=nodata)
+	if delete_file:
+		os.remove(dest_filepath)
+		print('\t','extraction complete, file deleted.')
+	del gpm_ds
+	return gpm_data
 
 
 def http_download(url, filepath, show_dots=False):
@@ -719,29 +782,6 @@ def http_download(url, filepath, show_dots=False):
 					print('.', end='')
 		print()
 	print('...Download complete!')
-
-def download_GPM_L3_product(short_name, version, year, month, dest_dirpath, username, password):
-	# wget --load-cookies /.urs_cookies --save-cookies /root/.urs_cookies --auth-no-challenge=on --user=your_user_name --ask-password --content-disposition -i <url text file>
-	http_session = requests.session()
-	if(month < 10):
-		month_str = '0'+str(month)
-	else:
-		month_str = str(month)
-	src_url = 'https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/%s.%s/%s/3B-MO.MS.MRG.3IMERG.%s%s01-S000000-E235959.%s.V06B.HDF5' % (short_name, version, year, year, month_str, month_str)
-	http_session.auth = (username, password)
-	# note: URL gets redirected
-	redirect = http_session.request('get', src_url)
-	filename = src_url.split('/')[-1]
-	dest_filepath = path.join(dest_dirpath, filename)
-	# NOTE the stream=True parameter below
-	print('Downloading %s to %s...' % (redirect.url, dest_filepath))
-	with http_session.get(redirect.url, auth=(username, password), stream=True) as r:
-		r.raise_for_status()
-		with open(dest_filepath, 'wb') as f:
-			for chunk in r.iter_content(chunk_size=1048576):
-				f.write(chunk)
-	print('...Download complete!')
-
 
 
 def get_landcover_URL_for_year(year):
