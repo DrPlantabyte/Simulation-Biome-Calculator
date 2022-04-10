@@ -21,6 +21,23 @@ def main():
 	username = secrets['username'][0] #input('Earth Data Username: ')
 	password = secrets['password'][0] #input('Earth Data Password: ')
 
+	### testing
+	annual_precip_mean_zp_path = path.join(data_dir, 'precip_mean_1852m_singrid.pickle.gz')
+	annual_precip_variation_zp_path = path.join(data_dir, 'precip_var_1852m_singrid.pickle.gz')
+	if path.exists(annual_precip_mean_zp_path) and path.exists(annual_precip_variation_zp_path):
+		mean_annual_precip = zunpickle(annual_precip_mean_zp_path)
+		range_annual_precip = zunpickle(annual_precip_variation_zp_path)
+	print(numpy.nanmin(mean_annual_precip), '-', numpy.nanmax(mean_annual_precip))
+	LE_mich_lat_lon = (42.767236, -84.45906)
+	LE_mich_yx = lat_lon_to_singrid_YX(LE_mich_lat_lon, mean_annual_precip.shape)
+	print('East Lansing 2015 precip = ', mean_annual_precip[LE_mich_yx[0], LE_mich_yx[1]], 'mm')
+	imshow(numpy.clip(mean_annual_precip[::10, ::10], 0, 1000))
+	imshow(range_annual_precip[::10, ::10])
+	del mean_annual_precip
+	del range_annual_precip
+	exit(1)
+	### endtesting
+
 	# desired products:
 	## Altitude and Ocean Depth - GEBCO_2021
 	## Terrestrial LST - MOD11C3
@@ -357,8 +374,9 @@ def main():
 		), dtype=float32, nodata=nan)
 		del gpm_var_merc
 		zpickle(range_annual_precip, annual_precip_variation_zp_path)
-	# imshow(mean_annual_precip)
-	# imshow(range_annual_precip)
+	print(numpy.nanmin(mean_annual_precip), '-', numpy.nanmax(mean_annual_precip))
+	imshow(mean_annual_precip[::10,::10])
+	imshow(range_annual_precip[::10,::10])
 	del mean_annual_precip
 	del range_annual_precip
 	print("...Done!")
@@ -439,19 +457,19 @@ def streaming_std_dev_finalize(existingAggregate):
 	(mean, variance, sampleVariance) = (mean, M2 / c, M2 / (c - 1))
 	return (numpy.ma.masked_array(mean, mask=mean_mask).filled(nan), variance, sampleVariance)
 
-def lat_lon_to_singrid_XY(lat_lon, width_height):
+def lat_lon_to_singrid_YX(lat_lon, height_width):
 	# X(lat,lon) = (w/2)*(1 + cos(lat)*sin(lon))
 	# Y(lat,lon) = (h/2)*(1 + sin(lat))
 	# lat(X,Y) = 90*((Y/(h/2)) - 1)
 	# lon(X,Y) = 180*((X/(w/2)) - 1)/cos(lat(X,Y))
-	half_width = 0.5*width_height[0]
-	half_height = 0.5*width_height[1]
+	half_width = 0.5*height_width[1]
+	half_height = 0.5*height_width[0]
 	lat = lat_lon[0]
 	lon  = lat_lon[1]
 	deg2rad = numpy.pi/180
 	x = half_width * (1 + numpy.cos(lat * deg2rad)*numpy.sin(lon * deg2rad))
 	y = half_height * (1 + numpy.sin(lat))
-	return numpy.asarray([x,y])
+	return numpy.asarray([int(y),int(x)])
 
 def singrid_XY_to_lat_lon(XY, width_height):
 	half_width = 0.5*width_height[0]
