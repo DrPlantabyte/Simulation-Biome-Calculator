@@ -165,6 +165,7 @@ def main():
 									dtype=numpy.float32, nodata=numpy.nan,
 									retry_limit=5, retry_delay=10
 								)[0], axis=0) - 273.15
+								break
 							except Exception as e:
 								print(e, file=sys.stderr)
 						lst_data: ndarray = numpy.ma.masked_array(lst_data, lst_data < -200).filled(nan)
