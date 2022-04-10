@@ -117,6 +117,7 @@ def main():
 
 	print('altitude_1852m_singrid.shape == ',altitude_1852m_singrid.shape)
 	imshow(altitude_1852m_singrid[0::10, 0::10], cmap='terrain')
+	del altitude_1852m_singrid
 
 	# pyplot.imshow(altitude_1852m_singrid[0::10, 0::10], alpha=1, cmap='terrain')
 	# pyplot.imshow(numpy.ma.masked_array(sample, mask=sample > 17), alpha=0.35, cmap='gist_rainbow')
@@ -280,11 +281,11 @@ def main():
 	else:
 		mean_surface_temp = zunpickle(surface_mean_temp_zp_path)
 		variation_surface_temp = zunpickle(surface_variation_temp_zp_path)
-	zpickle(mean_surface_temp, surface_mean_temp_zp_path)
-	zpickle(variation_surface_temp, surface_variation_temp_zp_path)
-	imshow(mean_surface_temp)
-	imshow(variation_surface_temp)
-	exit(1)
+	imshow(mean_surface_temp[0::10, 0::10])
+	imshow(variation_surface_temp[0::10, 0::10])
+	del mean_surface_temp
+	del variation_surface_temp
+
 	# rainfall (mm/year)
 	# variation = mean +/- 1.5 std dev
 	## https://disc.gsfc.nasa.gov/datasets/GPM_3IMERGDF_06/summary?keywords=%22IMERG%20final%22
@@ -310,12 +311,12 @@ def main():
 				(years, doy_start) = ([2015], 1)
 				zpickle((years, doy_start), progress_pickle)
 			std_aggregate = None
+			data_saver = path.join(dl_dir, 'GPM_stats_agg.pickle.gz')
+			if path.exists(data_saver):
+				std_aggregate = zunpickle(data_saver)
 			for y in range(0,len(years)):
 				year = years[y]
-				data_saver = path.join(dl_dir, 'GPM_stats_agg.pickle.gz')
-				if path.exists(data_saver):
-					std_aggregate = zunpickle(data_saver)
-				for doy in range(doy_start, 4):# 366): # TODO: uncomment
+				for doy in range(doy_start, 366):
 					date = datetime(year=year, month=1, day=1) + timedelta(days=doy - 1)
 					retries = 3
 					while (retries := retries - 1) > 0:
@@ -325,11 +326,13 @@ def main():
 								dest_dirpath=dl_dir, username=username, password=password,
 								delete_file=doy > 3
 							)
-							imshow(gpm_data)
+							# imshow(gpm_data)
 							break
 						except Exception as e:
 							print(e, file=sys.stderr)
+							time.sleep(11)
 					gpm_data: ndarray = numpy.ma.masked_array(gpm_data, mask=gpm_data < 0).filled(nan)
+					# print('gpm_data.shape ==', gpm_data.shape)
 					# NOTE: GPM data is (lon,lat), not (lat,lon)
 					if std_aggregate is None:
 						std_aggregate = streaming_std_dev_start(shape=gpm_data.shape)
@@ -339,10 +342,10 @@ def main():
 				zpickle((years[y+1:], 1), progress_pickle)
 			(gpm_mean_merc, _variance, gpm_var_merc) = streaming_std_dev_finalize(std_aggregate)
 			del _variance
-			imshow(gpm_mean_merc.T)
-			imshow(gpm_var_merc.T)
-			# zpickle(gpm_mean_merc, gpm_mean_zp) # TODO: uncomment
-			# zpickle(gpm_var_merc, gpm_var_zp) # TODO: uncomment
+			# imshow(gpm_mean_merc.T)
+			# imshow(gpm_var_merc.T)
+			zpickle(gpm_mean_merc, gpm_mean_zp)
+			zpickle(gpm_var_merc, gpm_var_zp)
 		mm_per_hr_2_annual = 24*365.24
 		mean_annual_precip = mercator_to_singrid(up_sample(
 			mm_per_hr_2_annual * gpm_mean_merc.T, dst_shape=(10800, 21600)
@@ -354,7 +357,10 @@ def main():
 		), dtype=float32, nodata=nan)
 		del gpm_var_merc
 		zpickle(range_annual_precip, annual_precip_variation_zp_path)
-
+	# imshow(mean_annual_precip)
+	# imshow(range_annual_precip)
+	del mean_annual_precip
+	del range_annual_precip
 	print("...Done!")
 
 def patch_data(zpath):
