@@ -395,7 +395,7 @@ def zunpickle(filepath):
 		with gzip.open(filepath, 'rb') as zin:
 			return pickle.load(zin)
 	else:
-		return None
+		raise FileNotFoundError("file '%s' does not exist" % filepath)
 
 def streaming_std_dev_start(shape, dtype=numpy.float64):
 	count = numpy.zeros(shape, dtype=numpy.int32)

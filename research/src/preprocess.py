@@ -24,11 +24,14 @@ def main():
 	surface_temp_variation_zpickle = path.join(data_dir, 'surf_temp_var_1852m_singrid.pickle.gz')
 	annual_precip_mean_zpickle = path.join(data_dir, 'precip_mean_1852m_singrid.pickle.gz')
 	annual_precip_variation_zpickle = path.join(data_dir, 'precip_var_1852m_singrid.pickle.gz')
+
 	##
 	altitude = zunpickle(altitude_zpickle)
 	imshow(numpy.clip(altitude[::10,::10], -200, 3000), 'altitude', cmap='terrain')
 	surface_temp_mean = zunpickle(surface_temp_mean_zpickle)
-	imshow(numpy.clip(altitude[::10,::10], 0, 50), 'surface temperature')
+	imshow(numpy.clip(surface_temp_mean[::10,::10], 0, 50), 'surface temperature')
+
+	print('Converting biomes...')
 	# convert to DrPlantabyte biomes
 	drplantabyte_biomes = numpy.zeros(shape_1852m, dtype=numpy.uint8)
 	igbp = zunpickle(igbp_zpickle)
@@ -46,7 +49,7 @@ def main():
 	## seasonal forest
 	mask = logical_or(
 		igbp == IGBP_DECIDUOUS_BROADLEAF_FOREST,
-		logical_or(igbp == IGBP_DECIDUOUS_NEEDLELEAF_FOREST, IGBP_MIXED_FOREST)
+		logical_or(igbp == IGBP_DECIDUOUS_NEEDLELEAF_FOREST, igbp == IGBP_MIXED_FOREST)
 	)
 	drplantabyte_biomes += Biome.SEASONAL_FOREST.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
 	## needle-leaf/taiga forest
@@ -65,7 +68,7 @@ def main():
 	### sand dunes are all between latitude 49 N and 28S, so just going to declare barrens within that sand dunes and
 	### everythong else not sand dunes
 	mask2 = numpy.zeros_like(drplantabyte_biomes)
-	mask2[int((90-28)*drplantabyte_biomes[0]/180):int((90+49)*drplantabyte_biomes[0]/180),:] = 1
+	mask2[int((90-28)*drplantabyte_biomes.shape[0]/180):int((90+49)*drplantabyte_biomes.shape[0]/180),:] = 1
 	mask = logical_and(mask2 == 1, igbp == IGBP_BARREN)
 	drplantabyte_biomes += Biome.SAND_SEA.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
 	mask = logical_and(mask2 == 0, igbp == IGBP_BARREN)
@@ -107,6 +110,13 @@ def main():
 	## fill the rest with ocean
 	mask = altitude < -200
 	drplantabyte_biomes += Biome.DEEP_OCEAN.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
+	#### done!
+	del mask
+	print('...Biomes converted!')
+	##### finished with biomes #####
+	imshow(drplantabyte_biomes, 'Biomes', cmap='prism')
+
+
 
 def mask_to_binary(m: ndarray):
 	return m.astype(uint8)
