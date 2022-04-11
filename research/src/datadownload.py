@@ -21,33 +21,6 @@ def main():
 	username = secrets['username'][0] #input('Earth Data Username: ')
 	password = secrets['password'][0] #input('Earth Data Password: ')
 
-	### testing
-	annual_precip_mean_zp_path = path.join(data_dir, 'precip_mean_1852m_singrid.pickle.gz')
-	annual_precip_variation_zp_path = path.join(data_dir, 'precip_var_1852m_singrid.pickle.gz')
-	mean_annual_precip = zunpickle(annual_precip_mean_zp_path)
-	range_annual_precip = zunpickle(annual_precip_variation_zp_path)
-	mean_annual_precip = numpy.flip(mean_annual_precip, axis=1) / 24
-	print(numpy.nanmin(mean_annual_precip), '-', numpy.nanmax(mean_annual_precip))
-	LE_mich_lat_lon = (42.767236, -84.45906)
-	SD_lat_lon = (32.9926,-117.0417)
-	Syd_lat_lon = (-33.5584,151.0981)
-	LE_mich_yx = lat_lon_to_singrid_YX(LE_mich_lat_lon, mean_annual_precip.shape)
-	SD_yx = lat_lon_to_singrid_YX(SD_lat_lon, mean_annual_precip.shape)
-	Syd_yx = lat_lon_to_singrid_YX(Syd_lat_lon, mean_annual_precip.shape)
-	print('East Lansing pixel coord',LE_mich_yx)
-	print('San Diego pixel coord',SD_yx)
-	print('Sydney pixel coord',Syd_yx)
-	s=mean_annual_precip.shape
-	print('East Lansing precip = ', mean_annual_precip[LE_mich_yx[0], LE_mich_yx[1]], 'mm')
-	print('San Diego precip = ', mean_annual_precip[SD_yx[0], SD_yx[1]], 'mm')
-	print('Sydney precip = ', mean_annual_precip[Syd_yx[0], Syd_yx[1]], 'mm')
-	imshow(numpy.clip(mean_annual_precip[::10, ::10], 0, 1000))
-	imshow(range_annual_precip[::10, ::10])
-	del mean_annual_precip
-	del range_annual_precip
-	exit(1)
-	### endtesting
-
 	# desired products:
 	## Altitude and Ocean Depth - GEBCO_2021
 	## Terrestrial LST - MOD11C3
@@ -373,43 +346,28 @@ def main():
 			# imshow(gpm_var_merc.T)
 			zpickle(gpm_mean_merc, gpm_mean_zp)
 			zpickle(gpm_var_merc, gpm_var_zp)
-		mm_per_hr_2_annual = 24*365.24
 		mean_annual_precip = mercator_to_singrid(up_sample(
-			mm_per_hr_2_annual * gpm_mean_merc.T, dst_shape=(10800, 21600)
+			365 * numpy.flip(gpm_mean_merc.T, axis=1), dst_shape=(10800, 21600)
 		), dtype=float32, nodata=nan)
 		del gpm_mean_merc
 		zpickle(mean_annual_precip, annual_precip_mean_zp_path)
 		range_annual_precip = mercator_to_singrid(up_sample(
-			mm_per_hr_2_annual * 1.5 * numpy.sqrt(gpm_var_merc.T), dst_shape=(10800, 21600)
+			365 * 1.5 * numpy.sqrt(numpy.flip(gpm_var_merc.T, axis=1)), dst_shape=(10800, 21600)
 		), dtype=float32, nodata=nan)
 		del gpm_var_merc
 		zpickle(range_annual_precip, annual_precip_variation_zp_path)
 	print(numpy.nanmin(mean_annual_precip), '-', numpy.nanmax(mean_annual_precip))
-	imshow(mean_annual_precip[::10,::10])
-	imshow(range_annual_precip[::10,::10])
+	imshow(numpy.clip(mean_annual_precip[::10,::10], 0, 3000))
+	imshow(numpy.clip(range_annual_precip[::10,::10], 0, 3000))
 	del mean_annual_precip
 	del range_annual_precip
 	print("...Done!")
 
 def patch_data(zpath):
 	# fix screw-ups
-	## mask singrid
+	## flip X and correct units
 	data = zunpickle(zpath)
-	x_offset = data.shape[1] / 2
-	for src_y in range(data.shape[0]):
-		dst_y = src_y
-		lat_rad = ((src_y / (data.shape[0])) - 0.5) * numpy.pi
-		cos_lat = numpy.cos(lat_rad)
-		circ = data.shape[1] * cos_lat
-		if cos_lat < 0.66667:
-			data[dst_y][0:int(x_offset - (circ / 2))] = nan
-			data[dst_y][int(x_offset - (circ / 2) + int(max(1, circ))):] = nan
-		else:
-			## roughly 1:1 srd to dest
-			resample = (numpy.linspace(0, 1, int(circ + 0.5) - 1) * (data.shape[1] - 1)).astype(numpy.int32)
-			L_margin = int((data.shape[1] - len(resample)) / 2)
-			data[dst_y][0:L_margin] = nan
-			data[dst_y][L_margin + len(resample):] = nan
+	data = numpy.flip(data, axis=1) / 24
 	zpickle(data, zpath)
 	del data
 
