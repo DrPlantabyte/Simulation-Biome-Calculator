@@ -24,13 +24,23 @@ def main():
 	### testing
 	annual_precip_mean_zp_path = path.join(data_dir, 'precip_mean_1852m_singrid.pickle.gz')
 	annual_precip_variation_zp_path = path.join(data_dir, 'precip_var_1852m_singrid.pickle.gz')
-	if path.exists(annual_precip_mean_zp_path) and path.exists(annual_precip_variation_zp_path):
-		mean_annual_precip = zunpickle(annual_precip_mean_zp_path)
-		range_annual_precip = zunpickle(annual_precip_variation_zp_path)
+	mean_annual_precip = zunpickle(annual_precip_mean_zp_path)
+	range_annual_precip = zunpickle(annual_precip_variation_zp_path)
+	mean_annual_precip = numpy.flip(mean_annual_precip, axis=1) / 24
 	print(numpy.nanmin(mean_annual_precip), '-', numpy.nanmax(mean_annual_precip))
 	LE_mich_lat_lon = (42.767236, -84.45906)
+	SD_lat_lon = (32.9926,-117.0417)
+	Syd_lat_lon = (-33.5584,151.0981)
 	LE_mich_yx = lat_lon_to_singrid_YX(LE_mich_lat_lon, mean_annual_precip.shape)
-	print('East Lansing 2015 precip = ', mean_annual_precip[LE_mich_yx[0], LE_mich_yx[1]], 'mm')
+	SD_yx = lat_lon_to_singrid_YX(SD_lat_lon, mean_annual_precip.shape)
+	Syd_yx = lat_lon_to_singrid_YX(Syd_lat_lon, mean_annual_precip.shape)
+	print('East Lansing pixel coord',LE_mich_yx)
+	print('San Diego pixel coord',SD_yx)
+	print('Sydney pixel coord',Syd_yx)
+	s=mean_annual_precip.shape
+	print('East Lansing precip = ', mean_annual_precip[LE_mich_yx[0], LE_mich_yx[1]], 'mm')
+	print('San Diego precip = ', mean_annual_precip[SD_yx[0], SD_yx[1]], 'mm')
+	print('Sydney precip = ', mean_annual_precip[Syd_yx[0], Syd_yx[1]], 'mm')
 	imshow(numpy.clip(mean_annual_precip[::10, ::10], 0, 1000))
 	imshow(range_annual_precip[::10, ::10])
 	del mean_annual_precip
@@ -462,38 +472,25 @@ def lat_lon_to_singrid_YX(lat_lon, height_width):
 	# Y(lat,lon) = (h/2)*(1 + sin(lat))
 	# lat(X,Y) = 90*((Y/(h/2)) - 1)
 	# lon(X,Y) = 180*((X/(w/2)) - 1)/cos(lat(X,Y))
+	deg2rad = numpy.pi/180
+	lat = lat_lon[0]
+	lon = lat_lon[1]
+	h = height_width[0]
+	w = height_width[1]
+	y = int((lat + 90) * h / 180)
+	circ = w * numpy.cos(lat * deg2rad)
+	dx = int((lon + 180) * circ / 360)
+	left_margin = int((w-circ)/2)
+	x = left_margin + dx
+	return numpy.asarray([y,x])
+
+
 	half_width = 0.5*height_width[1]
 	half_height = 0.5*height_width[0]
-	lat = lat_lon[0]
-	lon  = lat_lon[1]
-	deg2rad = numpy.pi/180
 	x = half_width * (1 + numpy.cos(lat * deg2rad)*numpy.sin(lon * deg2rad))
 	y = half_height * (1 + numpy.sin(lat))
 	return numpy.asarray([int(y),int(x)])
 
-def singrid_XY_to_lat_lon(XY, width_height):
-	half_width = 0.5*width_height[0]
-	half_height = 0.5*width_height[1]
-	x = XY[0]
-	y = XY[1]
-	deg2rad = numpy.pi/180
-	lat = 90*((y/half_height) - 1)
-	lon = 180*((x/half_width) - 1)/numpy.cos(lat * deg2rad)
-	return numpy.asarray([lat,lon])
-
-def singrid_mask(width_height) -> ndarray:
-	w = width_height[0]
-	h = width_height[1]
-	deg2rad = numpy.pi/180
-	mask = numpy.zeros((h,w), dtype=numpy.bool)
-	for row in range(0,h):
-		lat, _ = singrid_XY_to_lat_lon((0,row),width_height=width_height)
-		half_row_width = numpy.cos(lat * deg2rad)
-		left = 0.5 - half_row_width
-		right = 0.5 + half_row_width
-		row_data = numpy.linspace(0,1,int(w))-0.5
-		mask[row] = numpy.logical_and(row_data >= left, row_data <= right)
-	return mask
 
 def up_sample(src: ndarray, dst_shape) -> ndarray:
 	# increase number of pixels
