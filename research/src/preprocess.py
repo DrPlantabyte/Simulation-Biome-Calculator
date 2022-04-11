@@ -26,7 +26,9 @@ def main():
 	annual_precip_variation_zpickle = path.join(data_dir, 'precip_var_1852m_singrid.pickle.gz')
 	##
 	altitude = zunpickle(altitude_zpickle)
-	imshow(altitude[::10,::10], 'altitude', cmap='terrain')
+	imshow(numpy.clip(altitude[::10,::10], -200, 3000), 'altitude', cmap='terrain')
+	surface_temp_mean = zunpickle(surface_temp_mean_zpickle)
+	imshow(numpy.clip(altitude[::10,::10], 0, 50), 'surface temperature')
 	# convert to DrPlantabyte biomes
 	drplantabyte_biomes = numpy.zeros(shape_1852m, dtype=numpy.uint8)
 	igbp = zunpickle(igbp_zpickle)
@@ -60,10 +62,20 @@ def main():
 	mask = logical_or(igbp == IGBP_OPEN_SHRUBLAND, igbp == IGBP_CLOSED_SHRUBLAND)
 	drplantabyte_biomes += Biome.DESERT_SHRUBLAND.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
 	## sand sea & barren
-	### sand dunes are all below latitude 49 N, so just going to declare averything north of that non-sand barrens
-	mask = igbp == IGBP_BARREN
-	mask2 = ones_like()
-	drplantabyte_biomes += Biome.DESERT_SHRUBLAND.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
+	### sand dunes are all between latitude 49 N and 28S, so just going to declare barrens within that sand dunes and
+	### everythong else not sand dunes
+	mask2 = numpy.zeros_like(drplantabyte_biomes)
+	mask2[int((90-28)*drplantabyte_biomes[0]/180):int((90+49)*drplantabyte_biomes[0]/180),:] = 1
+	mask = logical_and(mask2 == 1, igbp == IGBP_BARREN)
+	drplantabyte_biomes += Biome.SAND_SEA.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
+	mask = logical_and(mask2 == 0, igbp == IGBP_BARREN)
+	drplantabyte_biomes += Biome.BARREN.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
+	del mask2
+	## ice sheet
+	mask = logical_or(
+		igbp == IGBP_SNOW_AND_ICE, fao_hydro == FAO_HYDRO_PERMANENT_SNOW_AND_ICE
+	)
+	drplantabyte_biomes += Biome.ICE_SHEET.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
 	## artificial biomes
 	mask = logical_or(igbp == IGBP_CROPLAND, igbp == IGBP_CROPLAND_NATURAL_VEGETATION_MOSAICS)
 	drplantabyte_biomes += Biome.FARMLAND.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
@@ -76,8 +88,25 @@ def main():
 		logical_or(igbp == IGBP_WATER_BODIES, fao_hydro == FAO_HYDRO_WATER_BODIES)
 	)
 	drplantabyte_biomes += Biome.FRESHWATER.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
-
-
+	### the next bit is a little fuzzy, as no decent global distribution maps exist for sea grasses or kelp forests or corals
+	## sea forest
+	mask = logical_and(
+		logical_and(altitude > -90, altitude < -6),
+		logical_and(surface_temp_mean > 5, surface_temp_mean < 20)
+	)
+	drplantabyte_biomes += Biome.SEA_FOREST.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
+	## tropical reef
+	mask = logical_and(
+		logical_and(altitude > -90, altitude < 0),
+		logical_and(surface_temp_mean >= 20, surface_temp_mean < 30)
+	)
+	drplantabyte_biomes += Biome.TROPICAL_REEF.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
+	## fill the remaining shallows with rocky shores
+	mask = logical_and(altitude > -200, altitude < 0)
+	drplantabyte_biomes += Biome.ROCKY_SHALLOWS.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
+	## fill the rest with ocean
+	mask = altitude < -200
+	drplantabyte_biomes += Biome.DEEP_OCEAN.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
 
 def mask_to_binary(m: ndarray):
 	return m.astype(uint8)
