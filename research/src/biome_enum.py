@@ -13,6 +13,7 @@ class Biome(Enum):
 	NEEDLELEAF_FOREST = 0x04
 	GRASSLAND = 0x05
 	DESERT_SHRUBLAND = 0x06
+	TUNDRA = 0x07
 	## AQUATIC BIOMES
 	FRESHWATER = 0x11
 	SEA_FOREST = 0x12
@@ -20,8 +21,8 @@ class Biome(Enum):
 	ROCKY_SHALLOWS = 0x14
 	DEEP_OCEAN = 0x10
 	## EXTREME/MICROBIOTIC BIOMES (terrestrial and aquatic)
-	BARREN = 0x07
-	SAND_SEA = 0x08
+	BARREN = 0x08
+	SAND_SEA = 0x09
 	ICE_SHEET = 0x15
 	BOILING_SEA = 0x16
 	## ASTRONOMICAL BIOMES
@@ -43,8 +44,10 @@ class Biome(Enum):
 	ELEMENTAL_CHAOS = 0x73
 	OOZE = 0x74
 
+
+# see paged 7-14 of https://lpdaac.usgs.gov/documents/101/MCD12_User_Guide_V6.pdf
 def from_IGBP_cover_type(cover_type: int) -> Biome:
-	if cover_type   == 1: return Biome.NEEDLELEAF_FOREST
+	if cover_type   == 1: return Biome.NEEDLELEAF_FOREST # Use FAO for tundra
 	elif cover_type == 2: return Biome.JUNGLE
 	elif cover_type == 3: return Biome.SEASONAL_FOREST
 	elif cover_type == 4: return Biome.SEASONAL_FOREST

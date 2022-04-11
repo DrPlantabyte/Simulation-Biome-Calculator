@@ -18,6 +18,7 @@ Inputs to the calculation:
 * Borial Forest/Evergreen Needleleaf Forest
 * Grassland/Savannah
 * Desert/Shrubland (normal deserts)
+* Tundra/Alpine Tundra
 
 ## Aquatic biomes:
 * Tropical Reef/Warm Euphotic Marine
@@ -69,6 +70,7 @@ SEASONAL_FOREST = 0x03
 NEEDLELEAF_FOREST = 0x04
 GRASSLAND = 0x05
 DESERT_SHRUBLAND = 0x06
+TUNDRA = 0x07
 
 ### AQUATIC BIOMES
 FRESHWATER = 0x11
@@ -78,8 +80,8 @@ ROCKY_SHALLOWS = 0x14
 DEEP_OCEAN = 0x10
 
 ### EXTREME/MICROBIOTIC BIOMES (terrestrial and aquatic)
-BARREN = 0x07
-SAND_SEA = 0x08
+BARREN = 0x08
+SAND_SEA = 0x09
 ICE_SHEET = 0x15
 BOILING_SEA = 0x16
 
