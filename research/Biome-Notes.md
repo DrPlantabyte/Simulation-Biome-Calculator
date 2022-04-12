@@ -25,6 +25,7 @@ Inputs to the calculation:
 * Sea Forest (seagrass and kelp)/Temprate to Cold Euphotic Marine
 * Rocky Shallows/Seasonal Ice/Sponge Garden
 * Deep Ocean
+* Shallow Ocean (sea floor still in photic zone, but too deep for reefs and seaweeds)
 * Surface Water/Rivers and Lakes
 
 ## Abiotic & microbiotic biomes:
@@ -78,12 +79,13 @@ SEA_FOREST = 0x12
 TROPICAL_REEF = 0x13
 ROCKY_SHALLOWS = 0x14
 DEEP_OCEAN = 0x10
+SHALLOW_OCEAN = 0x15
 
 ### EXTREME/MICROBIOTIC BIOMES (terrestrial and aquatic)
 BARREN = 0x08
 SAND_SEA = 0x09
-ICE_SHEET = 0x15
-BOILING_SEA = 0x16
+ICE_SHEET = 0x16
+BOILING_SEA = 0x17
 
 ### ASTRONOMICAL BIOMES
 MOONSCAPE = 0x40

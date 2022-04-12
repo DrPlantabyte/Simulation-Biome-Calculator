@@ -105,9 +105,12 @@ def main():
 	)
 	drplantabyte_biomes += Biome.TROPICAL_REEF.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
 	## fill the remaining shallows with rocky shores
-	mask = logical_and(altitude > -200, altitude < 0)
+	mask = logical_and(altitude > -90, altitude < 0)
 	drplantabyte_biomes += Biome.ROCKY_SHALLOWS.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
-	## fill the rest with ocean
+	## shallow ocean areas
+	mask = logical_and(altitude >= -200, altitude <= -90)
+	drplantabyte_biomes += Biome.SHALLOW_OCEAN.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
+	## fill the rest with  deepocean
 	mask = altitude < -200
 	drplantabyte_biomes += Biome.DEEP_OCEAN.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
 	#### done!
