@@ -1,6 +1,6 @@
 import os, shutil, sys, re, requests, base64, urllib.parse, numpy, pandas, json, pickle, ssl, time, gzip
 from os import path
-from numpy import ndarray, nan, uint8, float32, logical_and, logical_or
+from numpy import ndarray, nan, uint8, float32, logical_and, logical_or, clip, sin, cos
 from pandas import DataFrame
 from matplotlib import pyplot
 
@@ -118,11 +118,61 @@ def main():
 	print('...Biomes converted!')
 	##### finished with biomes #####
 	imshow(drplantabyte_biomes, 'Biomes', cmap='prism')
+	del igbp; del fao_hydro
+	surface_temp_range = zunpickle(surface_temp_variation_zpickle)
+	precip_mean = zunpickle(annual_precip_mean_zpickle)
+
+	# prepare fearures and labels
+	feature_names = 'gravity;annual-mean-solar-flux;pressure;altitude;annual-mean-temperature;annual-range-temperature;annual-mean-precip'.split(';')
+	feature_units = 'm/s2;W/m2;kPa;m;C;+/-C;mm'.split(';')
+	## make a small set first for quick testing
+	small_drplantabyte_biomes = drplantabyte_biomes[::10, ::10]
+	small_altitude = altitude[::10, ::10]
+	small_temp_mean = surface_temp_mean[::10, ::10]
+	small_temp_range = surface_temp_range[::10, ::10]
+	small_precip = precip_mean[::10, ::10]
+	## pressure
+	sealevel_pressure = 101 # kPa
+	small_pressure_kpa = pressure_at_altitude(101, small_altitude)
+	## solar flux claculation
+	### tidally locked: flux I = Imax * cos(lat) * cos(lon)
+	### rotating but without tilt: flux I = Imax * 2/pi * cos(lat)
+	### rotating but with tilt: flux I = Imax * 2/pi * 0.5 * (clip[cos(lat-tilt), 0-1] + clip[cos(lat+tilt), 0-1])
+	deg2Rad = numpy.pi / 180.0
+	two_over_pi = 2.0 / numpy.pi
+	axis_tilt = 23
+	max_solar_flux_TOA = 1373
+	small_latitudes = latitudes_like(small_altitude)
+	small_solar_flux = solar_flux_at_pressure(max_solar_flux_TOA * two_over_pi * 0.5 * (
+		clip(cos(deg2Rad*(small_latitudes - axis_tilt)),0,1)
+		+ clip(cos(deg2Rad*(small_latitudes + axis_tilt)),0,1)
+	), small_pressure_kpa)
 
 
 
-def mask_to_binary(m: ndarray):
+def mask_to_binary(m: ndarray) -> ndarray:
 	return m.astype(uint8)
+
+def latitudes_like(map: ndarray, dtype=numpy.float32) -> ndarray:
+	col = 180 * numpy.arange(map.shape[0], dtype=dtype)/(map.shape[0]-1) - 90
+	row = numpy.ones((map.shape[1],), dtype=dtype)
+	return numpy.outer(col, row)
+
+def pressure_at_altitude(sealevel_pressure_kPa, gravity_m_per_s2, mean_temp_C, altitude_m):
+	if altitude_m < 0:
+		# underwater
+		density_kg = 1
+		return sealevel_pressure_kPa - gravity_m_per_s2 * altitude_m * density_kg
+	else:
+		# up in the atmosphere
+		K = mean_temp_C+273.15
+		R = 8.314510 # j/K/mole
+		air_molar_mass = 0.02897 # kg/mol
+		return sealevel_pressure_kPa * numpy.exp(-(air_molar_mass * gravity_m_per_s2 * altitude_m)/(R*K))
+
+def solar_flux_at_pressure(top_of_atmosphere_flux, surface_pressure_kPa):
+	epsilon_air = 0.08464 # Absorption per 100 kPa
+	return top_of_atmosphere_flux * numpy.power(10, -epsilon_air * surface_pressure_kPa)
 
 def zpickle(obj, filepath):
 	print('Pickling %s with gzip compression...' % filepath)
