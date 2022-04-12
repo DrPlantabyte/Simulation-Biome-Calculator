@@ -158,20 +158,21 @@ def latitudes_like(map: ndarray, dtype=numpy.float32) -> ndarray:
 	row = numpy.ones((map.shape[1],), dtype=dtype)
 	return numpy.outer(col, row)
 
-def pressure_at_altitude(sealevel_pressure_kPa, gravity_m_per_s2, mean_temp_C, altitude_m):
-	if altitude_m < 0:
-		# underwater
-		density_kg = 1
-		return sealevel_pressure_kPa - gravity_m_per_s2 * altitude_m * density_kg
-	else:
-		# up in the atmosphere
-		K = mean_temp_C+273.15
-		R = 8.314510 # j/K/mole
-		air_molar_mass = 0.02897 # kg/mol
-		return sealevel_pressure_kPa * numpy.exp(-(air_molar_mass * gravity_m_per_s2 * altitude_m)/(R*K))
+def pressure_at_altitude(sealevel_pressure_kPa, gravity_m_per_s2, mean_temp_C, altitude_m: ndarray) -> ndarray:
+	# underwater
+	water_density_kg = 1
+	underwater = numpy.ma.masked_array(numpy.zeros_like(altitude_m), mask=altitude_m >= 0) \
+		+ sealevel_pressure_kPa - gravity_m_per_s2 * altitude_m * water_density_kg
+	# up in the atmosphere
+	K = mean_temp_C + 273.15
+	R = 8.314510  # j/K/mole
+	air_molar_mass = 0.02897  # kg/mol
+	above_water = sealevel_pressure_kPa * numpy.exp(-(air_molar_mass * gravity_m_per_s2 * altitude_m)/(R*K))
+	return underwater.filled(above_water)
 
-def solar_flux_at_pressure(top_of_atmosphere_flux, surface_pressure_kPa):
+def solar_flux_at_altitude(top_of_atmosphere_flux, sealevel_pressure_kPa, gravity_m_per_s2, mean_temp_C, altitude_m: ndarray) -> ndarray:
 	epsilon_air = 0.08464 # Absorption per 100 kPa
+	epsilon_water =   # Absorption per meter (150m == 1% transmission (0.01 = 10^(-epsilon*150))
 	return top_of_atmosphere_flux * numpy.power(10, -epsilon_air * surface_pressure_kPa)
 
 def zpickle(obj, filepath):
