@@ -123,7 +123,9 @@ def main():
 	# prepare fearures and labels
 	print('Extracting features...')
 	surface_temp_range = zunpickle(surface_temp_variation_zpickle)
+	imshow(surface_temp_range[::10, ::10], 'surface temp variation')
 	precip_mean = zunpickle(annual_precip_mean_zpickle)
+	imshow(numpy.log10(precip_mean[::10, ::10]), '(log10) annual precipitation')
 	small_feature_set = extract_features_and_labels(
 		altitude_m=altitude[::10, ::10],
 		mean_temp_C = surface_temp_mean[::10, ::10],
@@ -133,10 +135,13 @@ def main():
 		planet_mass_kg = 5.972e24,
 		axis_tilt_deg=23,
 		planet_radius_km = 6371,
-		toa_solar_flux_Wpm2 = 1373,  # max orbital solar flus, in watts per square meter
+		toa_solar_flux_Wpm2 = 1373,  # max orbital solar flux, in watts per square meter
 		biome_map=drplantabyte_biomes[::10, ::10]
 	)
-	print(small_feature_set.head())
+	print(small_feature_set.info())
+	with pandas.option_context('display.max_rows', 20, 'display.max_columns', 99):
+		print(small_feature_set)
+		print(small_feature_set[small_feature_set['biome'] == 0x03])
 	#
 	print('...Done!')
 
@@ -160,7 +165,7 @@ def extract_features_and_labels(
 	G = 6.67430e-11 # N m2 / kg2
 
 	mean_gravity = G * planet_mass_kg / numpy.square(planet_radius_km * 1000)
-	gravity = G * planet_mass_kg / numpy.square(planet_radius_km * 1000 + altitude_m)
+	gravity = (G * planet_mass_kg / numpy.square(planet_radius_km * 1000 + altitude_m)).astype(numpy.float32)
 	surface_solar_flux = solar_flux_at_altitude(
 		top_of_atmosphere_flux=toa_solar_flux_Wpm2,
 		sealevel_pressure_kPa=surface_pressure_kPa,
@@ -224,21 +229,22 @@ def solar_flux_at_altitude(top_of_atmosphere_flux, sealevel_pressure_kPa,
 	### rotating but with tilt: flux I = Imax * 2/pi * 0.5 * (clip[cos(lat-tilt), 0-1] + clip[cos(lat+tilt), 0-1])
 	two_over_pi = 0.5 * numpy.pi
 	deg2Rad = numpy.pi / 180
-	epsilon_air = 0.08464 # Absorption per 100 kPa
+	epsilon_air = 3.46391e-5 # Absorption per kPa (1360 = 1371 * 10^(-eps * 101) )
 	epsilon_water = 0.013333  # Absorption per meter (150m == 1% transmission (0.01 = 10^(-epsilon*150))
 	underwater = numpy.ma.masked_array(numpy.zeros_like(altitude_m), mask=altitude_m >= 0) \
 		+ numpy.power(10, epsilon_water*altitude_m)
 	above_water = numpy.power(
 		10, -epsilon_air * pressure_at_altitude(sealevel_pressure_kPa, gravity_m_per_s2, mean_temp_C, altitude_m)
 	)
+	max_flux = underwater.filled(1) * above_water * top_of_atmosphere_flux
 	if tidal_lock:
 		latitude = latitudes_like(altitude_m)
 		longitude = longitudes_like(altitude_m)
-		return underwater.filled(above_water) * top_of_atmosphere_flux * two_over_pi \
+		return max_flux * two_over_pi \
 			* numpy.cos(latitude) * clip(numpy.cos(longitude), 0, 1)
 	else:
 		latitude = latitudes_like(altitude_m)
-		return underwater.filled(above_water) * top_of_atmosphere_flux * two_over_pi * 0.5 * (
+		return max_flux * two_over_pi * 0.5 * (
 				clip(cos(deg2Rad * (latitude - axis_tilt_deg)), 0, 1)
 				+ clip(cos(deg2Rad * (latitude + axis_tilt_deg)), 0, 1)
 		)
