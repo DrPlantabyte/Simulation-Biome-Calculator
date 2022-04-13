@@ -24,6 +24,7 @@ def main():
 	surface_temp_variation_zpickle = path.join(data_dir, 'surf_temp_var_1852m_singrid.pickle.gz')
 	annual_precip_mean_zpickle = path.join(data_dir, 'precip_mean_1852m_singrid.pickle.gz')
 	annual_precip_variation_zpickle = path.join(data_dir, 'precip_var_1852m_singrid.pickle.gz')
+	drp_biomes_zpickle = path.join(data_dir, 'drp_biomes_1852m_singrid.pickle.gz')
 
 	##
 	altitude = zunpickle(altitude_zpickle)
@@ -115,6 +116,7 @@ def main():
 	drplantabyte_biomes += Biome.DEEP_OCEAN.value * mask_to_binary(logical_and(mask, drplantabyte_biomes == 0))
 	#### done!
 	del mask
+	zpickle(drplantabyte_biomes, drp_biomes_zpickle)
 	print('...Biomes converted!')
 	##### finished with biomes #####
 	imshow(drplantabyte_biomes[::10, ::10], 'Biomes', cmap='prism')
@@ -142,6 +144,50 @@ def main():
 	with pandas.option_context('display.max_rows', 20, 'display.max_columns', 99):
 		print(small_feature_set)
 		print(small_feature_set[small_feature_set['biome'] == 0x03])
+	show_counts(small_feature_set, colname='biome')
+	## need to make space in the RAM :(
+	del small_feature_set
+	del altitude
+	del surface_temp_mean
+	del surface_temp_range
+	del precip_mean
+	del drplantabyte_biomes
+	pyplot.clf()
+	import gc
+	gc.collect()
+
+	# save the data in four chunks
+	print('Saving data sets...')
+	stride = 2
+	for yoffset in range(0,stride):
+		for xoffset in range(0, stride):
+			### reloading the data each iteration to save memory
+			altitude = zunpickle(altitude_zpickle)[yoffset::stride, xoffset::stride].copy() # need to copy or we get a view into the old array
+			surface_temp_mean = zunpickle(surface_temp_mean_zpickle)[yoffset::stride, xoffset::stride].copy()
+			surface_temp_range = zunpickle(surface_temp_variation_zpickle)[yoffset::stride, xoffset::stride].copy()
+			precip_mean = zunpickle(annual_precip_mean_zpickle)[yoffset::stride, xoffset::stride].copy()
+			drplantabyte_biomes = zunpickle(drp_biomes_zpickle)[yoffset::stride, xoffset::stride].copy()
+			quarter_sample = extract_features_and_labels(
+				altitude_m=altitude,
+				mean_temp_C = surface_temp_mean,
+				range_temp_C = surface_temp_range,
+				annual_precip_mm = precip_mean,
+				biome_map=drplantabyte_biomes,
+				surface_pressure_kPa= 101, # pressure at sealevel, in kPa
+				planet_mass_kg = 5.972e24,
+				axis_tilt_deg=23,
+				planet_radius_km = 6371,
+				toa_solar_flux_Wpm2 = 1373  # max orbital solar flux, in watts per square meter
+			)
+			del altitude
+			del surface_temp_mean
+			del surface_temp_range
+			del precip_mean
+			del drplantabyte_biomes
+			zpickle(quarter_sample, path.join(data_dir, 'Earth_biome_DataFrame-%s.pickle.gz' % (stride*yoffset+xoffset)))
+			del quarter_sample
+			gc.collect()
+		pass
 	#
 	print('...Done!')
 
@@ -159,9 +205,6 @@ def extract_features_and_labels(
 		toa_solar_flux_Wpm2: float, # max orbital solar flus, in watts per square meter
 		tidal_lock = False, # True if same side of planet always faces host star
 	) -> DataFrame:
-	feature_names = 'gravity;annual-mean-solar-flux;pressure;altitude;annual-mean-temperature;annual-range-temperature;annual-mean-precip'.split(
-		';')
-	feature_units = 'm/s2;W/m2;kPa;m;C;+/-C;mm'.split(';')
 	G = 6.67430e-11 # N m2 / kg2
 
 	mean_gravity = G * planet_mass_kg / numpy.square(planet_radius_km * 1000)
@@ -270,6 +313,16 @@ def imshow(img: ndarray, title=None, cmap='gist_rainbow'):
 	pyplot.gca().invert_yaxis()
 	if title is not None:
 		pyplot.title(title)
+	pyplot.show()
+
+def show_counts(df: DataFrame, colname):
+	cats = numpy.unique(df[colname])
+	x = numpy.arange(len(cats))
+	counts = numpy.zeros((len(x),), dtype=numpy.int32)
+	for i in x:
+		counts[i] = len(df[df[colname] == cats[i]])
+	pyplot.bar(x, counts)
+	pyplot.xticks(x, cats)
 	pyplot.show()
 
 if __name__ == '__main__':
