@@ -117,36 +117,77 @@ def main():
 	del mask
 	print('...Biomes converted!')
 	##### finished with biomes #####
-	imshow(drplantabyte_biomes, 'Biomes', cmap='prism')
+	imshow(drplantabyte_biomes[::10, ::10], 'Biomes', cmap='prism')
 	del igbp; del fao_hydro
-	surface_temp_range = zunpickle(surface_temp_variation_zpickle)
-	precip_mean = zunpickle(annual_precip_mean_zpickle)
 
 	# prepare fearures and labels
-	feature_names = 'gravity;annual-mean-solar-flux;pressure;altitude;annual-mean-temperature;annual-range-temperature;annual-mean-precip'.split(';')
+	print('Extracting features...')
+	surface_temp_range = zunpickle(surface_temp_variation_zpickle)
+	precip_mean = zunpickle(annual_precip_mean_zpickle)
+	small_feature_set = extract_features_and_labels(
+		altitude_m=altitude[::10, ::10],
+		mean_temp_C = surface_temp_mean[::10, ::10],
+		range_temp_C = surface_temp_range[::10, ::10],
+		annual_precip_mm = precip_mean[::10, ::10],
+		surface_pressure_kPa= 101, # pressure at sealevel, in kPa
+		planet_mass_kg = 5.972e24,
+		axis_tilt_deg=23,
+		planet_radius_km = 6371,
+		toa_solar_flux_Wpm2 = 1373,  # max orbital solar flus, in watts per square meter
+		biome_map=drplantabyte_biomes[::10, ::10]
+	)
+	print(small_feature_set.head())
+	#
+	print('...Done!')
+
+
+def extract_features_and_labels(
+		biome_map: ndarray, # biome code map (labels)
+		altitude_m: ndarray, # altitude in meters
+		mean_temp_C: ndarray,  # annual mean temperature, in C
+		range_temp_C: ndarray, # 1.5 std. dev.s of annual temp (+/- C)
+		annual_precip_mm: ndarray, # annual mean rainfall in mm
+		surface_pressure_kPa, # pressure at sealevel, in kPa
+		planet_mass_kg: float, # planet mass in kg
+		axis_tilt_deg: float, # planet axis tilt in degrees
+		planet_radius_km: float, # mean plant surface radius, in km
+		toa_solar_flux_Wpm2: float, # max orbital solar flus, in watts per square meter
+		tidal_lock = False, # True if same side of planet always faces host star
+	) -> DataFrame:
+	feature_names = 'gravity;annual-mean-solar-flux;pressure;altitude;annual-mean-temperature;annual-range-temperature;annual-mean-precip'.split(
+		';')
 	feature_units = 'm/s2;W/m2;kPa;m;C;+/-C;mm'.split(';')
-	## make a small set first for quick testing
-	small_drplantabyte_biomes = drplantabyte_biomes[::10, ::10]
-	small_altitude = altitude[::10, ::10]
-	small_temp_mean = surface_temp_mean[::10, ::10]
-	small_temp_range = surface_temp_range[::10, ::10]
-	small_precip = precip_mean[::10, ::10]
-	## pressure
-	sealevel_pressure = 101 # kPa
-	small_pressure_kpa = pressure_at_altitude(101, small_altitude)
-	## solar flux claculation
-	### tidally locked: flux I = Imax * cos(lat) * cos(lon)
-	### rotating but without tilt: flux I = Imax * 2/pi * cos(lat)
-	### rotating but with tilt: flux I = Imax * 2/pi * 0.5 * (clip[cos(lat-tilt), 0-1] + clip[cos(lat+tilt), 0-1])
-	deg2Rad = numpy.pi / 180.0
-	two_over_pi = 2.0 / numpy.pi
-	axis_tilt = 23
-	max_solar_flux_TOA = 1373
-	small_latitudes = latitudes_like(small_altitude)
-	small_solar_flux = solar_flux_at_pressure(max_solar_flux_TOA * two_over_pi * 0.5 * (
-		clip(cos(deg2Rad*(small_latitudes - axis_tilt)),0,1)
-		+ clip(cos(deg2Rad*(small_latitudes + axis_tilt)),0,1)
-	), small_pressure_kpa)
+	G = 6.67430e-11 # N m2 / kg2
+
+	mean_gravity = G * planet_mass_kg / numpy.square(planet_radius_km * 1000)
+	gravity = G * planet_mass_kg / numpy.square(planet_radius_km * 1000 + altitude_m)
+	surface_solar_flux = solar_flux_at_altitude(
+		top_of_atmosphere_flux=toa_solar_flux_Wpm2,
+		sealevel_pressure_kPa=surface_pressure_kPa,
+		gravity_m_per_s2=mean_gravity,
+		mean_temp_C=mean_temp_C,
+		altitude_m=altitude_m,
+		axis_tilt_deg=axis_tilt_deg,
+		tidal_lock=tidal_lock
+	)
+	pressure = pressure_at_altitude(
+		sealevel_pressure_kPa=surface_pressure_kPa,
+		gravity_m_per_s2=mean_gravity,
+		mean_temp_C=mean_temp_C,
+		altitude_m=altitude_m
+	)
+	df = DataFrame.from_dict({
+		'gravity': gravity.ravel(),
+		'solar_flux': surface_solar_flux.ravel(),
+		'pressure': pressure.ravel(),
+		'altitude': altitude_m.ravel(),
+		'temperature_mean': mean_temp_C.ravel(),
+		'temperature_range': range_temp_C.ravel(),
+		'precipitation': annual_precip_mm.ravel(),
+		'biome': biome_map.ravel()
+	})
+	df = df.dropna()
+	return df
 
 
 
@@ -156,6 +197,11 @@ def mask_to_binary(m: ndarray) -> ndarray:
 def latitudes_like(map: ndarray, dtype=numpy.float32) -> ndarray:
 	col = 180 * numpy.arange(map.shape[0], dtype=dtype)/(map.shape[0]-1) - 90
 	row = numpy.ones((map.shape[1],), dtype=dtype)
+	return numpy.outer(col, row)
+
+def longitudes_like(map: ndarray, dtype=numpy.float32) -> ndarray:
+	row = 360 * numpy.arange(map.shape[1], dtype=dtype)/(map.shape[1]-1) - 180
+	col = numpy.ones((map.shape[0],), dtype=dtype)
 	return numpy.outer(col, row)
 
 def pressure_at_altitude(sealevel_pressure_kPa, gravity_m_per_s2, mean_temp_C, altitude_m: ndarray) -> ndarray:
@@ -170,10 +216,32 @@ def pressure_at_altitude(sealevel_pressure_kPa, gravity_m_per_s2, mean_temp_C, a
 	above_water = sealevel_pressure_kPa * numpy.exp(-(air_molar_mass * gravity_m_per_s2 * altitude_m)/(R*K))
 	return underwater.filled(above_water)
 
-def solar_flux_at_altitude(top_of_atmosphere_flux, sealevel_pressure_kPa, gravity_m_per_s2, mean_temp_C, altitude_m: ndarray) -> ndarray:
+def solar_flux_at_altitude(top_of_atmosphere_flux, sealevel_pressure_kPa,
+		gravity_m_per_s2, mean_temp_C, altitude_m: ndarray, axis_tilt_deg, tidal_lock=False) -> ndarray:
+	## solar flux claculation
+	### tidally locked: flux I = Imax * cos(lat) * clip[cos(lon), 0-1]
+	### rotating but without tilt: flux I = Imax * 2/pi * cos(lat)
+	### rotating but with tilt: flux I = Imax * 2/pi * 0.5 * (clip[cos(lat-tilt), 0-1] + clip[cos(lat+tilt), 0-1])
+	two_over_pi = 0.5 * numpy.pi
+	deg2Rad = numpy.pi / 180
 	epsilon_air = 0.08464 # Absorption per 100 kPa
-	epsilon_water =   # Absorption per meter (150m == 1% transmission (0.01 = 10^(-epsilon*150))
-	return top_of_atmosphere_flux * numpy.power(10, -epsilon_air * surface_pressure_kPa)
+	epsilon_water = 0.013333  # Absorption per meter (150m == 1% transmission (0.01 = 10^(-epsilon*150))
+	underwater = numpy.ma.masked_array(numpy.zeros_like(altitude_m), mask=altitude_m >= 0) \
+		+ numpy.power(10, epsilon_water*altitude_m)
+	above_water = numpy.power(
+		10, -epsilon_air * pressure_at_altitude(sealevel_pressure_kPa, gravity_m_per_s2, mean_temp_C, altitude_m)
+	)
+	if tidal_lock:
+		latitude = latitudes_like(altitude_m)
+		longitude = longitudes_like(altitude_m)
+		return underwater.filled(above_water) * top_of_atmosphere_flux * two_over_pi \
+			* numpy.cos(latitude) * clip(numpy.cos(longitude), 0, 1)
+	else:
+		latitude = latitudes_like(altitude_m)
+		return underwater.filled(above_water) * top_of_atmosphere_flux * two_over_pi * 0.5 * (
+				clip(cos(deg2Rad * (latitude - axis_tilt_deg)), 0, 1)
+				+ clip(cos(deg2Rad * (latitude + axis_tilt_deg)), 0, 1)
+		)
 
 def zpickle(obj, filepath):
 	print('Pickling %s with gzip compression...' % filepath)
