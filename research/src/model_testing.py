@@ -10,7 +10,7 @@ from matplotlib import pyplot
 from biome_enum import Biome
 
 def main():
-	RELOAD = False
+	RELOAD = True
 	data_dir = 'data'
 	data_sets_zpickles = [path.join(data_dir, 'Earth_biome_DataFrame-%s.pickle.gz' % n) for n in range(0,4)]
 	# data splitting: 3 training batches and 1 test batch
@@ -19,7 +19,7 @@ def main():
 	labels = dev_data['biome']
 	features = dev_data.drop('biome', axis=1, inplace=False)
 	dtree_zpickle = path.join(data_dir, 'dtree-model.pickle.gz')
-	dtree_size = 32
+	dtree_size = 4
 	if RELOAD or not path.exists(dtree_zpickle):
 		pipe = Pipeline([
 			('normalize', MinMaxScaler()),
@@ -37,7 +37,7 @@ def main():
 	export_graphviz(
 		pipe['decision_tree'], out_file='dtree.dot', feature_names=features.columns,
 		class_names=None, rounded=True, filled=True
-	)
+	) # dot -Tpng dtree.dot dtree.png
 	#
 	print('...Done!')
 
