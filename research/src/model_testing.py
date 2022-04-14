@@ -27,6 +27,43 @@ def main():
 	labels = dev_data['biome']
 	features: DataFrame = dev_data.drop(['biome', 'gravity', 'solar_flux', 'pressure', 'altitude'], axis=1, inplace=False)
 	print('features: ', list(features.columns))
+
+	## lets take a peek at the data
+	make_plots = True
+	if make_plots:
+		print('making plots...')
+		classes = numpy.unique(labels)
+		for i in range(0, len(classes)):
+			bcode = classes[i]
+			bname = Biome(bcode)
+			rows = labels == bcode
+			#pyplot.scatter(dev_data['temperature_mean'][rows], dev_data['precipitation'][rows], label=bname, alpha=0.01)
+			pyplot.hexbin(dev_data['temperature_mean'][rows], dev_data['precipitation'][rows], label=bname, gridsize=(35,30), extent=(-20,50 , 0,3000), cmap='rainbow')
+			pyplot.xlim((-20,50))
+			pyplot.ylim((0,3000))
+			# pyplot.legend(loc='upper center')
+			pyplot.grid()
+			pyplot.title(bname)
+			pyplot.xlabel('temperature (C)')
+			pyplot.ylabel('rainfall (mm)')
+			pyplot.savefig('temp-vs-precip_%s.png' % bname)
+			pyplot.clf()
+		for i in range(0, len(classes)):
+			bcode = classes[i]
+			bname = Biome(bcode)
+			rows = labels == bcode
+			#pyplot.scatter(dev_data['temperature_mean'][rows], dev_data['precipitation'][rows], label=bname, alpha=0.01)
+			pyplot.hexbin(dev_data['temperature_mean'][rows], dev_data['temperature_range'][rows], label=bname, gridsize=(35,25), extent=(-20,50 , 0,50), cmap='rainbow')
+			pyplot.xlim((-20,50))
+			pyplot.ylim((0,50))
+			# pyplot.legend(loc='upper center')
+			pyplot.grid()
+			pyplot.title(bname)
+			pyplot.xlabel('temperature (C)')
+			pyplot.ylabel('+/- C')
+			pyplot.savefig('temp-mean-vs-range_%s.png' % bname)
+			pyplot.clf()
+		exit(1)
 	# dtree_zpickle = path.join(data_dir, 'dtree-model.pickle.gz')
 
 	rp_pipe = Pipeline([
@@ -68,9 +105,46 @@ def fit_and_score(pipe: Pipeline, input_data: DataFrame, labels: ndarray):
 	percent_accuracy = 100 * pipe.score(X=input_data, y=labels)
 	print('Overall accuracy: %s %%' % int(percent_accuracy))
 
+
+class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
+	def __init__(self):
+
+	def fit(self, X, y):
+		# Check that X and y have correct shape
+		X: ndarray = numpy.asarray(X)
+		y: ndarray = numpy.asarray(y)
+		X, y = check_X_y(X, y)
+		# Store the classes seen during fit
+		self.classes_ = unique_labels(y)
+		self.feature_count_ = len(X[0])
+		## no fitting operation
+		# Return the classifier
+		return self
+
+	def biome_for(self, solar_flux: ndarray, pressure: ndarray, altitude: ndarray, mean_temp: ndarray, annual_precip: ndarray, temp_var: ndarray):
+		out = numpy.zeros(mean_temp.shape, dtype=numpy.uint8)
+		# NOTE: boolean * is AND and + is OR
+		photic_depth =
+		out[(altitude < -photic_depth)] = Biome.DEEP_OCEAN
+		return out
+
+	def predict(self, X):
+		# Check is fit had been called
+		check_is_fitted(self)
+
+		# Input validation
+		X = check_array(X)
+
+		class_dists = numpy.zeros((len(self.classes_),len(X))) + numpy.inf
+		for i in range(0, len(self.classes_)):
+			class_dists[i] = euclidean_distances(X, self.ref_points[i]).min(axis=1)
+
+		closest = numpy.argmin(class_dists, axis=0)
+		return self.classes_[closest]
+
 class ReferencePointClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 	def __init__(self, num_pts):
-		self.
+		self.num_pts = num_pts
 		pass
 
 	def fit(self, X, y):
