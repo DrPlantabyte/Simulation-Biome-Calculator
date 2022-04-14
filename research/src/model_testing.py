@@ -10,6 +10,7 @@ from sklearn.preprocessing import *
 from sklearn.metrics import classification_report, euclidean_distances
 from sklearn.tree import DecisionTreeClassifier, export_text, export_graphviz
 from sklearn.base import BaseEstimator, TransformerMixin, ClassifierMixin
+from sklearn.cluster import KMeans
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn.utils.multiclass import unique_labels
 from matplotlib import pyplot
@@ -25,11 +26,11 @@ def main():
 	dev_data = src_data[numpy.logical_and(src_data['biome'] != 0, src_data['biome'] < 0x10)]
 	print('columns: ', list(dev_data.columns))
 	labels = dev_data['biome']
-	features: DataFrame = dev_data.drop(['biome', 'gravity', 'solar_flux', 'pressure', 'altitude'], axis=1, inplace=False)
+	features: DataFrame = dev_data.drop(['biome', 'gravity', 'solar_flux', 'pressure'], axis=1, inplace=False)
 	print('features: ', list(features.columns))
 
 	## lets take a peek at the data
-	make_plots = True
+	make_plots = False
 	if make_plots:
 		print('making plots...')
 		classes = numpy.unique(labels)
@@ -65,10 +66,13 @@ def main():
 			pyplot.clf()
 		exit(1)
 	# dtree_zpickle = path.join(data_dir, 'dtree-model.pickle.gz')
+	print('definitions classifier...')
+	bc = BiomeClassifier(features.columns)
+	fit_and_score(bc, input_data=features, labels=labels)
 
 	rp_pipe = Pipeline([
 		('normalize', MinMaxScaler()),
-		('my_classifier', ReferencePointClassifier())
+		('my_classifier', ReferencePointClassifier(5))
 	])
 	print('reference point classifier...')
 	fit_and_score(rp_pipe, input_data=features, labels=labels)
@@ -107,7 +111,15 @@ def fit_and_score(pipe: Pipeline, input_data: DataFrame, labels: ndarray):
 
 
 class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
-	def __init__(self):
+	def __init__(self, columns):
+		self.columns = list(columns)
+		for req in ['temperature_mean', 'temperature_range', 'precipitation', 'altitude']:
+			if req not in self.columns:
+				raise ValueError('Missing required data column %s' % req)
+		self.index_mean_temp = self.columns.index('temperature_mean')
+		self.index_temp_var = self.columns.index('temperature_range')
+		self.index_precip = self.columns.index('precipitation')
+		self.index_altitude = self.columns.index('altitude')
 
 	def fit(self, X, y):
 		# Check that X and y have correct shape
@@ -121,11 +133,10 @@ class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 		# Return the classifier
 		return self
 
-	def biome_for(self, solar_flux: ndarray, pressure: ndarray, altitude: ndarray, mean_temp: ndarray, annual_precip: ndarray, temp_var: ndarray):
+	def biome_for(self, altitude: ndarray, mean_temp: ndarray, annual_precip: ndarray, temp_var: ndarray):
 		out = numpy.zeros(mean_temp.shape, dtype=numpy.uint8)
 		# NOTE: boolean * is AND and + is OR
-		photic_depth =
-		out[(altitude < -photic_depth)] = Biome.DEEP_OCEAN
+		out[(altitude >= 0) * (mean_temp >= 21) * (mean_temp <= 31) * (annual_precip >= 1200) * (temp_var <= 6)] = Biome.JUNGLE.value
 		return out
 
 	def predict(self, X):
@@ -134,17 +145,18 @@ class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 
 		# Input validation
 		X = check_array(X)
+		X = numpy.asarray(X)
 
-		class_dists = numpy.zeros((len(self.classes_),len(X))) + numpy.inf
-		for i in range(0, len(self.classes_)):
-			class_dists[i] = euclidean_distances(X, self.ref_points[i]).min(axis=1)
-
-		closest = numpy.argmin(class_dists, axis=0)
-		return self.classes_[closest]
+		return self.biome_for(
+			altitude=X[:, self.index_altitude],
+			mean_temp=X[:, self.index_mean_temp],
+			annual_precip=X[:, self.index_precip],
+			temp_var=X[:, self.index_temp_var],
+		)
 
 class ReferencePointClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
-	def __init__(self, num_pts):
-		self.num_pts = num_pts
+	def __init__(self, num_pts_per_class):
+		self.num_pts_per_class = num_pts_per_class
 		pass
 
 	def fit(self, X, y):
@@ -159,7 +171,9 @@ class ReferencePointClassifier(BaseEstimator, TransformerMixin, ClassifierMixin)
 		self.ref_points = []
 		for i in range(0, len(self.classes_)):
 			L = self.classes_[i]
-			self.ref_points.append(X.take(numpy.where(y == L), axis=0)[0].mean(axis=0).reshape((1,X.shape[1])))
+			km = KMeans(n_clusters=self.num_pts_per_class)
+			km.fit(X[y == L])
+			self.ref_points.append(km.cluster_centers_)
 		# Return the classifier
 		return self
 
