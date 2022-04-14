@@ -3,7 +3,7 @@ from os import path
 from subprocess import call
 from PIL import Image
 from copy import deepcopy
-from numpy import ndarray, nan, uint8, float32, logical_and, logical_or, clip, sin, cos
+from numpy import ndarray, nan, uint8, float32, logical_and, logical_or, clip, sin, cos, square, sqrt, power
 from pandas import DataFrame
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import *
@@ -105,6 +105,9 @@ def fit_and_score(pipe: Pipeline, input_data: DataFrame, labels: ndarray):
 	## f1-score = 2*(Recall * Precision) / (Recall + Precision)
 	## support = total number of this class
 	pipe.fit(X=input_data, y=labels)
+	print('Definitions:')
+	print('\tprecision - true positives / all positives')
+	print('\trecall - true positives / actual number')
 	print(classification_report(y_true=labels, y_pred=pipe.predict(input_data)))
 	percent_accuracy = 100 * pipe.score(X=input_data, y=labels)
 	print('Overall accuracy: %s %%' % int(percent_accuracy))
@@ -136,6 +139,8 @@ class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 	def biome_for(self, altitude: ndarray, mean_temp: ndarray, annual_precip: ndarray, temp_var: ndarray):
 		out = numpy.zeros(mean_temp.shape, dtype=numpy.uint8)
 		# NOTE: boolean * is AND and + is OR
+		out[(altitude >= 0) * (mean_temp + temp_var >= 15) * (mean_temp <= 7) * (annual_precip >= 500) \
+			* (annual_precip < (5*square(mean_temp - 10)+1000))] = Biome.WETLAND.value
 		out[(altitude >= 0) * (mean_temp >= 21) * (mean_temp <= 31) * (annual_precip >= 1200) * (temp_var <= 6)] = Biome.JUNGLE.value
 		return out
 
