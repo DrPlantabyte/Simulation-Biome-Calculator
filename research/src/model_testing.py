@@ -3,7 +3,7 @@ from os import path
 from subprocess import call
 from PIL import Image
 from copy import deepcopy
-from numpy import ndarray, nan, uint8, float32, logical_and, logical_or, clip, sin, cos, square, sqrt, power
+from numpy import ndarray, nan, uint8, float32, logical_and, logical_or, clip, sin, cos, square, sqrt, power, log10
 from pandas import DataFrame
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import *
@@ -30,40 +30,22 @@ def main():
 	print('features: ', list(features.columns))
 
 	## lets take a peek at the data
-	make_plots = False
+	make_plots = True
 	if make_plots:
 		print('making plots...')
 		classes = numpy.unique(labels)
 		for i in range(0, len(classes)):
 			bcode = classes[i]
-			bname = Biome(bcode)
-			rows = labels == bcode
-			#pyplot.scatter(dev_data['temperature_mean'][rows], dev_data['precipitation'][rows], label=bname, alpha=0.01)
-			pyplot.hexbin(dev_data['temperature_mean'][rows], dev_data['precipitation'][rows], label=bname, gridsize=(35,30), extent=(-20,50 , 0,3000), cmap='rainbow')
-			pyplot.xlim((-20,50))
-			pyplot.ylim((0,3000))
-			# pyplot.legend(loc='upper center')
-			pyplot.grid()
-			pyplot.title(bname)
-			pyplot.xlabel('temperature (C)')
-			pyplot.ylabel('rainfall (mm)')
-			pyplot.savefig('temp-vs-precip_%s.png' % bname)
-			pyplot.clf()
-		for i in range(0, len(classes)):
-			bcode = classes[i]
-			bname = Biome(bcode)
-			rows = labels == bcode
-			#pyplot.scatter(dev_data['temperature_mean'][rows], dev_data['precipitation'][rows], label=bname, alpha=0.01)
-			pyplot.hexbin(dev_data['temperature_mean'][rows], dev_data['temperature_range'][rows], label=bname, gridsize=(35,25), extent=(-20,50 , 0,50), cmap='rainbow')
-			pyplot.xlim((-20,50))
-			pyplot.ylim((0,50))
-			# pyplot.legend(loc='upper center')
-			pyplot.grid()
-			pyplot.title(bname)
-			pyplot.xlabel('temperature (C)')
-			pyplot.ylabel('+/- C')
-			pyplot.savefig('temp-mean-vs-range_%s.png' % bname)
-			pyplot.clf()
+			hexplot_y_vs_x_for_z_df(
+				df=dev_data, x_col_name='temperature_mean', y_col_name='precipitation', z_col_name='biome',
+				z_value=bcode, name=str(Biome(bcode)),
+				x_range=(-20,50), x_grids =35, y_range =(0,3000), y_grids =30
+			)
+			hexplot_y_vs_x_for_z_df(
+				df=dev_data, x_col_name='temperature_mean', y_col_name='temperature_range', z_col_name='biome',
+				z_value=bcode, name=str(Biome(bcode)),
+				x_range=(-20,50), x_grids=35, y_range=(0,50), y_grids=25
+			)
 		exit(1)
 	# dtree_zpickle = path.join(data_dir, 'dtree-model.pickle.gz')
 	print('definitions classifier...')
@@ -98,6 +80,40 @@ def main():
 	# )
 	#
 	print('...Done!')
+
+def hexplot_y_vs_x_for_z_df(df: DataFrame, x_col_name: str, y_col_name: str, z_col_name: str,
+		z_value, name, x_range: (float,float), x_grids: int, y_range: (float,float), y_grids: int,
+		cmap='rainbow', show=False
+	):
+	hexplot_y_vs_x_for_z(
+		xdata=df[x_col_name], ydata=df[y_col_name], zdata=df[z_col_name], z_value=z_value, name=name,
+		x_range=x_range, x_grids=x_grids, y_range=y_range, y_grids=y_grids,
+		x_axis_title=x_col_name, y_axis_title=y_col_name, cmap=cmap, show=show
+	)
+
+def hexplot_y_vs_x_for_z(xdata: ndarray, ydata: ndarray, zdata: ndarray, z_value, name,
+		x_range: (float,float), x_grids: int, y_range: (float,float), y_grids: int,
+		x_axis_title: str, y_axis_title: str, cmap='rainbow', show=False
+	):
+	rows = zdata == z_value
+	#pyplot.scatter(dev_data['temperature_mean'][rows], dev_data['precipitation'][rows], label=bname, alpha=0.01)
+	pyplot.hexbin(
+		xdata[rows], ydata[rows], label=name,
+		gridsize=(x_grids,y_grids), extent=(x_range[0],x_range[1] , y_range[0],y_range[1]),
+		cmap=cmap
+	)
+	pyplot.xlim(x_range)
+	pyplot.ylim(y_range)
+	# pyplot.legend(loc='upper center')
+	pyplot.grid()
+	pyplot.title(name)
+	pyplot.xlabel(x_axis_title)
+	pyplot.ylabel(y_axis_title)
+	pyplot.savefig('%s vs %s - %s.png' % (y_axis_title, x_axis_title, name))
+	if show:
+		pyplot.show()
+	pyplot.clf()
+
 def fit_and_score(pipe: Pipeline, input_data: DataFrame, labels: ndarray):
 	## NOTE:
 	## precision = fraction of positive predictions that were correct (true positives/(true+false positives))
@@ -106,8 +122,8 @@ def fit_and_score(pipe: Pipeline, input_data: DataFrame, labels: ndarray):
 	## support = total number of this class
 	pipe.fit(X=input_data, y=labels)
 	print('Definitions:')
-	print('\tprecision - true positives / all positives')
-	print('\trecall - true positives / actual number')
+	print('\tprecision - true positives / all positive IDs')
+	print('\trecall - true positives / real number')
 	print(classification_report(y_true=labels, y_pred=pipe.predict(input_data)))
 	percent_accuracy = 100 * pipe.score(X=input_data, y=labels)
 	print('Overall accuracy: %s %%' % int(percent_accuracy))
