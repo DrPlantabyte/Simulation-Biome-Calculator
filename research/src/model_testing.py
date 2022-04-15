@@ -50,7 +50,7 @@ def main():
 		photochemistry_km_PAR = 90
 		PAR2Wpm2 = 1360 / 2400
 		CO2_Km_ppm = 200
-		Vmax = michalelis_menten(pressure_kPa * 300/101, Km=CO2_Km_ppm, Vmax=1)
+		Vmax = michalelis_menten(pressure_kPa * 300/101, Km=CO2_Km_ppm, Vmax=1/0.6)
 		return michalelis_menten(solar_flux_Wpm2, Km=photochemistry_km_PAR * PAR2Wpm2, Vmax=Vmax)
 
 	def water_limitation(precip_mm: ndarray):
