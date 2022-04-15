@@ -204,6 +204,20 @@ class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 		self.index_altitude = self.columns.index('altitude')
 		self.index_solar_flux = self.columns.index('solar_flux')
 
+	def get_param_array(self) -> ndarray:
+		p=numpy.zeros((13,), dtype=float32)
+		p[0] = self.jungle_ps
+		p[1] = self.barren_ps
+		p[2] = self.sand_sea_min_temp
+		p[3] = self.wetland_min_precip
+		p[4:6] = self.tree_mean_var_focus1
+		p[6:8] = self.tree_mean_var_focus2
+		p[8] = self.treellipse_dist
+		p[9:11] = self.broadleaf_temp_precip_divider[0]
+		p[11:13] = self.broadleaf_temp_precip_divider[1]
+		return p
+
+
 	def fit(self, X, y):
 		# Check that X and y have correct shape
 		X: ndarray = numpy.asarray(X)
