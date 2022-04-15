@@ -29,11 +29,80 @@ def main():
 	features: DataFrame = dev_data.drop(['biome', 'gravity', 'solar_flux', 'pressure'], axis=1, inplace=False)
 	print('features: ', list(features.columns))
 
+	print('estimating GPP potential...')
+	## see MOD17 product documentation - http://www.ntsg.umt.edu/project/modis/mod17.php and http://www.ntsg.umt.edu/project/modis/user-guides/mod17c61usersguidev11mar112021.pdf
+	## see also
+	def michalelis_menten(x: ndarray, Vmax, Km):
+		return (Vmax * x) / (Km + x)
+
+	def haldane(x: ndarray, Vmax, Km, opt):
+		return (Vmax * x) / (Km*square((x/opt) - 1) + x)
+
+	def CTMI(x: ndarray, xmin, xopt, xmax):
+		## WARNING: only works if xopt is closer to xmax than to xmin!
+		mask = numpy.ones_like(x)
+		mask[(x <= xmin) + (x >= xmax)] = 0
+		return mask * ((x-xmax) * square(x-xmin)) / ((xopt-xmin) * ((xopt-xmin)*(x-xopt) - (xopt-xmax)*(xopt+xmin-2*x)))
+
+	def max_photochemistry(solar_flux_Wpm2: ndarray, pressure_kPa: ndarray):
+		## based on Serôdio, J, & Lavaud, J. Photosynthesis research 108.1 (2011): 61-76
+		## and Rzigui, T, et al. Plant science 205 (2013): 20-28.
+		photochemistry_km_PAR = 90
+		PAR2Wpm2 = 1360 / 2400
+		CO2_Km_ppm = 200
+		Vmax = michalelis_menten(pressure_kPa * 300/101, Km=CO2_Km_ppm, Vmax=1)
+		return michalelis_menten(solar_flux_Wpm2, Km=photochemistry_km_PAR * PAR2Wpm2, Vmax=Vmax)
+
+	def water_limitation(precip_mm: ndarray):
+		## from Schuur, E. Ecology 84.5 (2003): 1165-1170.
+		rain_Km_mm = 500
+		rain_opt_mm = 2400
+		return haldane(precip_mm, Vmax=1, Km=rain_Km_mm, opt=rain_opt_mm)
+
+	def temperature_limitation(temp_C: ndarray):
+		## from various sources
+		Tmin = -5
+		Tmax = 85
+		Topt = 41
+		return CTMI(temp_C, xmin=Tmin, xopt=Topt, xmax=Tmax)
+
+	def photosynthesis_score(
+			mean_temp_C: ndarray, temp_variation_C: ndarray, precip_mm: ndarray,
+			solar_flux_Wpm2: ndarray, pressure_kPa: ndarray
+	):
+		return numpy.minimum(
+			max_photochemistry(solar_flux_Wpm2=solar_flux_Wpm2, pressure_kPa=pressure_kPa),
+			water_limitation(precip_mm=precip_mm)
+		) * 0.25 * (2 * temperature_limitation(mean_temp_C) + temperature_limitation(mean_temp_C + temp_variation_C) + temperature_limitation(mean_temp_C - temp_variation_C))
+
+	dev_data = dev_data.assign(**{
+		'rel_photosythesis': photosynthesis_score(
+			mean_temp_C=dev_data['temperature_mean'], temp_variation_C=dev_data['temperature_range'],
+			precip_mm=dev_data['precipitation'], solar_flux_Wpm2=dev_data['solar_flux'],
+			pressure_kPa=dev_data['pressure']
+		)
+	})
+
+
 	## lets take a peek at the data
 	make_plots = True
 	if make_plots:
 		print('making plots...')
 		classes = numpy.unique(labels)
+		for feature in [str(c) for c in dev_data.columns if str(c) != 'biome']:
+			print('plotting %s comparison...' % feature)
+			pyplot.bar(
+				[str(Biome(bcode)).replace('Biome.', '') for bcode in classes],
+				[dev_data[feature][dev_data['biome'] == bcode].mean() for bcode in classes],
+				yerr=[dev_data[feature][dev_data['biome'] == bcode].std() for bcode in classes]
+			)
+			pyplot.xticks(rotation=30, ha='right')
+			pyplot.title(feature)
+			pyplot.ylabel(feature)
+			pyplot.tight_layout()
+			pyplot.savefig('biome %s.png' % feature)
+			#pyplot.show()
+			pyplot.clf()
 		for i in range(0, len(classes)):
 			bcode = classes[i]
 			hexplot_y_vs_x_for_z_df(
@@ -45,6 +114,26 @@ def main():
 				df=dev_data, x_col_name='temperature_mean', y_col_name='temperature_range', z_col_name='biome',
 				z_value=bcode, name=str(Biome(bcode)),
 				x_range=(-20,50), x_grids=35, y_range=(0,50), y_grids=25
+			)
+			hexplot_y_vs_x_for_z_df(
+				df=dev_data, x_col_name='altitude', y_col_name='temperature_mean', z_col_name='biome',
+				z_value=bcode, name=str(Biome(bcode)),
+				x_range=(0,5000), x_grids =25, y_range=(-20,50), y_grids =35
+			)
+			hexplot_y_vs_x_for_z_df(
+				df=dev_data, x_col_name='altitude', y_col_name='precipitation', z_col_name='biome',
+				z_value=bcode, name=str(Biome(bcode)),
+				x_range=(0,5000), x_grids =25, y_range =(0,3000), y_grids =30
+			)
+			hexplot_y_vs_x_for_z_df(
+				df=dev_data, x_col_name='precipitation', y_col_name='rel_photosythesis', z_col_name='biome',
+				z_value=bcode, name=str(Biome(bcode)),
+				x_range=(0,3000), x_grids=30, y_range=(0,1), y_grids=20
+			)
+			hexplot_y_vs_x_for_z_df(
+				df=dev_data, x_col_name='temperature_mean', y_col_name='rel_photosythesis', z_col_name='biome',
+				z_value=bcode, name=str(Biome(bcode)),
+				x_range=(-20,50), x_grids=35, y_range=(0,1), y_grids=20
 			)
 		exit(1)
 	# dtree_zpickle = path.join(data_dir, 'dtree-model.pickle.gz')
@@ -95,6 +184,8 @@ def hexplot_y_vs_x_for_z(xdata: ndarray, ydata: ndarray, zdata: ndarray, z_value
 		x_range: (float,float), x_grids: int, y_range: (float,float), y_grids: int,
 		x_axis_title: str, y_axis_title: str, cmap='rainbow', show=False
 	):
+	filename = '%s vs %s - %s.png' % (y_axis_title, x_axis_title, name)
+	print('plotting %s...' % filename)
 	rows = zdata == z_value
 	#pyplot.scatter(dev_data['temperature_mean'][rows], dev_data['precipitation'][rows], label=bname, alpha=0.01)
 	pyplot.hexbin(
@@ -109,7 +200,7 @@ def hexplot_y_vs_x_for_z(xdata: ndarray, ydata: ndarray, zdata: ndarray, z_value
 	pyplot.title(name)
 	pyplot.xlabel(x_axis_title)
 	pyplot.ylabel(y_axis_title)
-	pyplot.savefig('%s vs %s - %s.png' % (y_axis_title, x_axis_title, name))
+	pyplot.savefig(filename)
 	if show:
 		pyplot.show()
 	pyplot.clf()
