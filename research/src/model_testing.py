@@ -15,6 +15,7 @@ from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn.utils.multiclass import unique_labels
 from matplotlib import pyplot
 from biome_enum import Biome
+from photophysiology import *
 
 def main():
 	# RELOAD = True
@@ -26,55 +27,12 @@ def main():
 	dev_data = src_data[numpy.logical_and(src_data['biome'] != 0, src_data['biome'] < 0x10)]
 	print('columns: ', list(dev_data.columns))
 	labels = dev_data['biome']
-	features: DataFrame = dev_data.drop(['biome', 'gravity', 'solar_flux', 'pressure'], axis=1, inplace=False)
+	features: DataFrame = dev_data.drop(['biome', 'gravity'], axis=1, inplace=False)
 	print('features: ', list(features.columns))
 
 	print('estimating GPP potential...')
 	## see MOD17 product documentation - http://www.ntsg.umt.edu/project/modis/mod17.php and http://www.ntsg.umt.edu/project/modis/user-guides/mod17c61usersguidev11mar112021.pdf
 	## see also
-	def michalelis_menten(x: ndarray, Vmax, Km):
-		return (Vmax * x) / (Km + x)
-
-	def haldane(x: ndarray, Vmax, Km, opt):
-		return (Vmax * x) / (Km*square((x/opt) - 1) + x)
-
-	def CTMI(x: ndarray, xmin, xopt, xmax):
-		## WARNING: only works if xopt is closer to xmax than to xmin!
-		mask = numpy.ones_like(x)
-		mask[(x <= xmin) + (x >= xmax)] = 0
-		return mask * ((x-xmax) * square(x-xmin)) / ((xopt-xmin) * ((xopt-xmin)*(x-xopt) - (xopt-xmax)*(xopt+xmin-2*x)))
-
-	def max_photochemistry(solar_flux_Wpm2: ndarray, pressure_kPa: ndarray):
-		## based on Serôdio, J, & Lavaud, J. Photosynthesis research 108.1 (2011): 61-76
-		## and Rzigui, T, et al. Plant science 205 (2013): 20-28.
-		photochemistry_km_PAR = 90
-		PAR2Wpm2 = 1360 / 2400
-		CO2_Km_ppm = 200
-		Vmax = michalelis_menten(pressure_kPa * 300/101, Km=CO2_Km_ppm, Vmax=1/0.6)
-		return michalelis_menten(solar_flux_Wpm2, Km=photochemistry_km_PAR * PAR2Wpm2, Vmax=Vmax)
-
-	def water_limitation(precip_mm: ndarray):
-		## from Schuur, E. Ecology 84.5 (2003): 1165-1170.
-		rain_Km_mm = 500
-		rain_opt_mm = 2400
-		return haldane(precip_mm, Vmax=1, Km=rain_Km_mm, opt=rain_opt_mm)
-
-	def temperature_limitation(temp_C: ndarray):
-		## from various sources
-		Tmin = -5
-		Tmax = 85
-		Topt = 41
-		return CTMI(temp_C, xmin=Tmin, xopt=Topt, xmax=Tmax)
-
-	def photosynthesis_score(
-			mean_temp_C: ndarray, temp_variation_C: ndarray, precip_mm: ndarray,
-			solar_flux_Wpm2: ndarray, pressure_kPa: ndarray
-	):
-		return numpy.minimum(
-			max_photochemistry(solar_flux_Wpm2=solar_flux_Wpm2, pressure_kPa=pressure_kPa),
-			water_limitation(precip_mm=precip_mm)
-		) * 0.25 * (2 * temperature_limitation(mean_temp_C) + temperature_limitation(mean_temp_C + temp_variation_C) + temperature_limitation(mean_temp_C - temp_variation_C))
-
 	dev_data = dev_data.assign(**{
 		'rel_photosythesis': photosynthesis_score(
 			mean_temp_C=dev_data['temperature_mean'], temp_variation_C=dev_data['temperature_range'],
@@ -85,7 +43,7 @@ def main():
 
 
 	## lets take a peek at the data
-	make_plots = True
+	make_plots = False
 	if make_plots:
 		print('making plots...')
 		classes = numpy.unique(labels)
@@ -140,6 +98,7 @@ def main():
 	print('definitions classifier...')
 	bc = BiomeClassifier(features.columns)
 	fit_and_score(bc, input_data=features, labels=labels)
+	exit(1)
 
 	rp_pipe = Pipeline([
 		('normalize', MinMaxScaler()),
@@ -222,14 +181,28 @@ def fit_and_score(pipe: Pipeline, input_data: DataFrame, labels: ndarray):
 
 class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 	def __init__(self, columns):
+		# constants
+		self.jungle_ps = 0.7
+		self.barren_ps = 0.15
+		self.sand_sea_min_temp = 20
+		self.wetland_min_precip = 1200
+		self.desert_max_precip = 600
+		## happy tree zone elipsoid
+		self.tree_mean_var_focus1 = numpy.asarray([ 2, 25], dtype=numpy.float32)
+		self.tree_mean_var_focus2 = numpy.asarray([15, 15], dtype=numpy.float32)
+		self.treellipse_dist = 58.6 # sum of d1 and d2 of a point relative to f1 and f2
+		self.broadleaf_temp_precip_divider = numpy.asarray([[0,1200],[10,600]], dtype=float32)
+		# sanity check
 		self.columns = list(columns)
-		for req in ['temperature_mean', 'temperature_range', 'precipitation', 'altitude']:
+		for req in ['temperature_mean', 'temperature_range', 'precipitation', 'altitude', 'pressure', 'solar_flux']:
 			if req not in self.columns:
 				raise ValueError('Missing required data column %s' % req)
 		self.index_mean_temp = self.columns.index('temperature_mean')
 		self.index_temp_var = self.columns.index('temperature_range')
 		self.index_precip = self.columns.index('precipitation')
+		self.index_pressure = self.columns.index('pressure')
 		self.index_altitude = self.columns.index('altitude')
+		self.index_solar_flux = self.columns.index('solar_flux')
 
 	def fit(self, X, y):
 		# Check that X and y have correct shape
@@ -243,12 +216,41 @@ class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 		# Return the classifier
 		return self
 
-	def biome_for(self, altitude: ndarray, mean_temp: ndarray, annual_precip: ndarray, temp_var: ndarray):
+	def biome_for(self, altitude: ndarray, mean_temp: ndarray, annual_precip: ndarray, temp_var: ndarray, pressure: ndarray, solar_flux: ndarray):
 		out = numpy.zeros(mean_temp.shape, dtype=numpy.uint8)
 		# NOTE: boolean * is AND and + is OR
-		out[(altitude >= 0) * (mean_temp + temp_var >= 15) * (mean_temp <= 7) * (annual_precip >= 500) \
-			* (annual_precip < (5*square(mean_temp - 10)+1000))] = Biome.WETLAND.value
-		out[(altitude >= 0) * (mean_temp >= 21) * (mean_temp <= 31) * (annual_precip >= 1200) * (temp_var <= 6)] = Biome.JUNGLE.value
+		photosynth = photosynthesis_score(
+			mean_temp_C  = mean_temp, temp_variation_C = temp_var, precip_mm=annual_precip,
+			solar_flux_Wpm2=solar_flux, pressure_kPa=pressure
+		)
+		### terrestrial biomes ###
+		## super high GPP means jungle
+		out[(altitude >= 0) * (photosynth >= self.jungle_ps)] = Biome.JUNGLE.value
+		## super low GPP is barren or sand sea
+		out[(altitude >= 0) * (photosynth <= self.barren_ps) * (mean_temp >= self.sand_sea_min_temp)] = Biome.SAND_SEA.value
+		out[(altitude >= 0) * (photosynth <= self.barren_ps) * (mean_temp < self.sand_sea_min_temp)] = Biome.BARREN.value
+		## wetlands wetter than forests & grasslands wetter than deserts
+		out[(altitude >= 0) * (photosynth < self.jungle_ps) * (photosynth > self.barren_ps) \
+			* (annual_precip >= self.wetland_min_precip)] = Biome.WETLAND.value
+		out[(altitude >= 0) * (photosynth < self.jungle_ps) * (photosynth > self.barren_ps) \
+			* (annual_precip <= self.desert_max_precip)] = Biome.DESERT_SHRUBLAND.value
+		### trees in happy-tree-zone, otherwise only grass grows, and needleleaf trees are hardier than broadleaf
+		treelipse_dist = sqrt(square(mean_temp - self.tree_mean_var_focus1[0]) + square(temp_var - self.tree_mean_var_focus1[1])) \
+			+ sqrt(square(mean_temp - self.tree_mean_var_focus2[0]) + square(temp_var - self.tree_mean_var_focus2[1]))
+		out[(altitude >= 0) * (photosynth < self.jungle_ps) * (photosynth > self.barren_ps) \
+			* (annual_precip > self.desert_max_precip) * (annual_precip < self.wetland_min_precip) \
+			* (treelipse_dist > self.treellipse_dist)] = Biome.GRASSLAND.value
+		div_slope = (self.broadleaf_temp_precip_divider[1,1] - self.broadleaf_temp_precip_divider[0,1]) \
+				/ (self.broadleaf_temp_precip_divider[1,0] - self.broadleaf_temp_precip_divider[0,0])
+		div_offset = self.broadleaf_temp_precip_divider[0,1] \
+				- div_slope * self.broadleaf_temp_precip_divider[0,0]
+		out[(altitude >= 0) * (photosynth < self.jungle_ps) * (photosynth > self.barren_ps) \
+			* (annual_precip > self.desert_max_precip) * (annual_precip < self.wetland_min_precip) \
+			* (treelipse_dist <= self.treellipse_dist) * (annual_precip < (div_slope * mean_temp + div_offset))] = Biome.NEEDLELEAF_FOREST.value
+		out[(altitude >= 0) * (photosynth < self.jungle_ps) * (photosynth > self.barren_ps) \
+			* (annual_precip > self.desert_max_precip) * (annual_precip < self.wetland_min_precip) \
+			* (treelipse_dist <= self.treellipse_dist) * (annual_precip >= (div_slope * mean_temp + div_offset))] = Biome.SEASONAL_FOREST.value
+		del treelipse_dist
 		return out
 
 	def predict(self, X):
@@ -264,6 +266,8 @@ class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 			mean_temp=X[:, self.index_mean_temp],
 			annual_precip=X[:, self.index_precip],
 			temp_var=X[:, self.index_temp_var],
+			pressure=X[:, self.index_pressure],
+			solar_flux=X[:, self.index_solar_flux]
 		)
 
 class ReferencePointClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
