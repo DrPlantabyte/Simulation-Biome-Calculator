@@ -3,6 +3,8 @@ from os import path
 from subprocess import call
 from PIL import Image
 from copy import deepcopy
+
+from imblearn.under_sampling import RandomUnderSampler
 from numpy import ndarray, nan, uint8, float32, logical_and, logical_or, clip, sin, cos, square, sqrt, power, log10
 from pandas import DataFrame
 from sklearn.pipeline import Pipeline
@@ -24,8 +26,10 @@ def main():
 	data_sets_zpickles = [path.join(data_dir, 'Earth_biome_DataFrame-%s.pickle.gz' % n) for n in range(0,4)]
 	# data splitting: 3 training batches and 1 test batch
 	src_data: DataFrame = zunpickle(data_sets_zpickles[0])
+	# remove unclassified rows
+	src_data: DataFrame = src_data[src_data['biome'] != 0]
 	# remove unclassified rows and reduce data size and remove oceans
-	dev_data = src_data[numpy.logical_and(src_data['biome'] != 0, src_data['biome'] < 0x10)]
+	dev_data = src_data[src_data['biome'] < 0x10]
 	print('columns: ', list(dev_data.columns))
 	labels = dev_data['biome']
 	features: DataFrame = dev_data.drop(['biome', 'gravity'], axis=1, inplace=False)
@@ -99,18 +103,24 @@ def main():
 	print('definitions classifier...')
 	bc = BiomeClassifier(features.columns)
 	fit_and_score(bc, input_data=features, labels=labels)
-
+	##
+	balancer = RandomUnderSampler()
+	bfeatures, blabels = balancer.fit_resample(features, labels)
+	print('balanced data:', len(bfeatures), 'rows')
 	print('old params:', bc.get_param_array())
 	def opti_bc(*params):
 		bc.set_param_array(params)
-		return bc.score(features, labels)
+		return bc.score(bfeatures, blabels)
 	print('optimizing...')
 	opt_p, iters = hillclimb.maximize(opti_bc, bc.get_param_array(), precision=0.1)
 	print('...completed in %s iterations' % iters)
 	bc.set_param_array(opt_p)
 	print('new params:', bc.get_param_array())
 	print('optimized definitions classifier...')
-	fit_and_score(bc, input_data=features, labels=labels)
+	#fit_and_score(bc, input_data=features, labels=labels)
+	print(classification_report(y_true=blabels, y_pred=bc.predict(bfeatures)))
+	percent_accuracy = 100 * bc.score(X=bfeatures, y=blabels)
+	print('Overall accuracy: %s %%' % int(percent_accuracy))
 	exit(1)
 
 	rp_pipe = Pipeline([
@@ -118,7 +128,7 @@ def main():
 		('my_classifier', ReferencePointClassifier(5))
 	])
 	print('reference point classifier...')
-	fit_and_score(rp_pipe, input_data=features, labels=labels)
+	fit_and_score(rp_pipe, input_data=bfeatures, labels=blabels)
 
 	# for dtree_size in range(2,10):
 	dtree_size = 6
@@ -128,11 +138,10 @@ def main():
 		('decision_tree', DecisionTreeClassifier(max_depth=dtree_size))
 	])
 	print('fitting decision tree model with %s layers...' % dtree_size)
-	dtree_pipe.fit(X=features, y=labels)
 		# zpickle(pipe, dtree_zpickle)
 	# else:
 		# pipe = zunpickle(dtree_zpickle)
-	fit_and_score(dtree_pipe, input_data=features, labels=labels)
+	fit_and_score(dtree_pipe, input_data=bfeatures, labels=blabels)
 
 	#print(export_text(pipe['decision_tree'], max_depth=dtree_size))
 	# graphviz_export(
@@ -195,16 +204,16 @@ def fit_and_score(pipe: Pipeline, input_data: DataFrame, labels: ndarray):
 class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 	def __init__(self, columns):
 		# constants
-		self.jungle_ps = 0.7
-		self.barren_ps = 0.15
-		self.sand_sea_min_temp = 20
-		self.wetland_min_precip = 1200
-		self.desert_max_precip = 600
+		self.jungle_ps = 0.748
+		self.barren_ps = 0.189
+		self.sand_sea_min_temp = 15
+		self.wetland_min_precip = 1225
+		self.desert_max_precip = 412
 		## happy tree zone elipsoid
-		self.tree_mean_var_focus1 = numpy.asarray([ 2, 25], dtype=numpy.float32)
-		self.tree_mean_var_focus2 = numpy.asarray([15, 15], dtype=numpy.float32)
-		self.treellipse_dist = 58.6 # sum of d1 and d2 of a point relative to f1 and f2
-		self.broadleaf_temp_precip_divider = numpy.asarray([[0,1200],[10,600]], dtype=float32)
+		self.tree_mean_var_focus1 = numpy.asarray([ -1.40, 36.2], dtype=numpy.float32)
+		self.tree_mean_var_focus2 = numpy.asarray([11, 2.2], dtype=numpy.float32)
+		self.treellipse_dist = 54.6 # sum of d1 and d2 of a point relative to f1 and f2
+		self.broadleaf_temp_precip_divider = numpy.asarray([[-1.8,1197],[10.5,603]], dtype=float32)
 		# sanity check
 		self.columns = list(columns)
 		for req in ['temperature_mean', 'temperature_range', 'precipitation', 'altitude', 'pressure', 'solar_flux']:
@@ -218,16 +227,17 @@ class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 		self.index_solar_flux = self.columns.index('solar_flux')
 
 	def get_param_array(self) -> ndarray:
-		p=numpy.zeros((13,), dtype=float32)
+		p=numpy.zeros((14,), dtype=float32)
 		p[0] = self.jungle_ps
 		p[1] = self.barren_ps
 		p[2] = self.sand_sea_min_temp
 		p[3] = self.wetland_min_precip
-		p[4:6] = self.tree_mean_var_focus1
-		p[6:8] = self.tree_mean_var_focus2
-		p[8] = self.treellipse_dist
-		p[9:11] = self.broadleaf_temp_precip_divider[0]
-		p[11:13] = self.broadleaf_temp_precip_divider[1]
+		p[4] = self.desert_max_precip
+		p[5:7] = self.tree_mean_var_focus1
+		p[7:9] = self.tree_mean_var_focus2
+		p[9] = self.treellipse_dist
+		p[10:12] = self.broadleaf_temp_precip_divider[0]
+		p[12:14] = self.broadleaf_temp_precip_divider[1]
 		return p
 
 	def set_param_array(self, p: ndarray):
@@ -235,11 +245,12 @@ class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 		self.barren_ps = p[1]
 		self.sand_sea_min_temp = p[2]
 		self.wetland_min_precip = p[3]
-		self.tree_mean_var_focus1 = p[4:6]
-		self.tree_mean_var_focus2 = p[6:8]
-		self.treellipse_dist = p[8]
-		self.broadleaf_temp_precip_divider[0] = p[9:11]
-		self.broadleaf_temp_precip_divider[1] = p[11:13]
+		self.desert_max_precip = p[4]
+		self.tree_mean_var_focus1 = p[5:7]
+		self.tree_mean_var_focus2 = p[7:9]
+		self.treellipse_dist = p[9]
+		self.broadleaf_temp_precip_divider[0] = p[10:12]
+		self.broadleaf_temp_precip_divider[1] = p[12:14]
 
 	def fit(self, X, y):
 		# Check that X and y have correct shape
