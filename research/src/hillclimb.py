@@ -34,7 +34,7 @@ def minimize(
 	p0 = numpy.asarray(p0, dtype=numpy.float64)
 	num_params = len(p0)
 	params = p0.copy()
-	jump_size = numpy.zeros_like(p0) + 256*precision
+	jump_size = numpy.zeros_like(p0) + 16*precision
 	iterations = 0
 	base_val = f(*params)
 	while (iterations := iterations+1) < iteration_limit and numpy.max(jump_size) > precision:

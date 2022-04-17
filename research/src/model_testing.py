@@ -16,6 +16,7 @@ from sklearn.utils.multiclass import unique_labels
 from matplotlib import pyplot
 from biome_enum import Biome
 from photophysiology import *
+import hillclimb
 
 def main():
 	# RELOAD = True
@@ -97,6 +98,18 @@ def main():
 	# dtree_zpickle = path.join(data_dir, 'dtree-model.pickle.gz')
 	print('definitions classifier...')
 	bc = BiomeClassifier(features.columns)
+	fit_and_score(bc, input_data=features, labels=labels)
+
+	print('old params:', bc.get_param_array())
+	def opti_bc(*params):
+		bc.set_param_array(params)
+		return bc.score(features, labels)
+	print('optimizing...')
+	opt_p, iters = hillclimb.maximize(opti_bc, bc.get_param_array(), precision=0.1)
+	print('...completed in %s iterations' % iters)
+	bc.set_param_array(opt_p)
+	print('new params:', bc.get_param_array())
+	print('optimized definitions classifier...')
 	fit_and_score(bc, input_data=features, labels=labels)
 	exit(1)
 
@@ -217,6 +230,16 @@ class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 		p[11:13] = self.broadleaf_temp_precip_divider[1]
 		return p
 
+	def set_param_array(self, p: ndarray):
+		self.jungle_ps = p[0]
+		self.barren_ps = p[1]
+		self.sand_sea_min_temp = p[2]
+		self.wetland_min_precip = p[3]
+		self.tree_mean_var_focus1 = p[4:6]
+		self.tree_mean_var_focus2 = p[6:8]
+		self.treellipse_dist = p[8]
+		self.broadleaf_temp_precip_divider[0] = p[9:11]
+		self.broadleaf_temp_precip_divider[1] = p[11:13]
 
 	def fit(self, X, y):
 		# Check that X and y have correct shape
