@@ -332,34 +332,18 @@ class ReferencePointClassifier(BaseEstimator, TransformerMixin, ClassifierMixin)
 		self.classes_ = unique_labels(y)
 		self.feature_count_ = len(X[0])
 		# fitting operation
-		self.ref_points = []
+		ref_points = []
 		for i in range(0, len(self.classes_)):
 			L = self.classes_[i]
 			km = KMeans(n_clusters=self.num_pts_per_class)
 			km.fit(X[y == L])
-			self.ref_points.append(km.cluster_centers_)
+			ref_points.append(km.cluster_centers_)
+		self.ref_points = numpy.asarray(ref_points)
+		print('self.ref_points.shape',self.ref_points.shape)
 		# Return the classifier
 		return self
 
-	def _rand_point(self, X, y):
-		# A1 = self.ref_points[numpy.random.randint(len(self.classes_))]
-		# p1 = A1[numpy.random.randint(A1.shape[0])]
-		# A2 = self.ref_points[numpy.random.randint(len(self.classes_))]
-		# p2 = A2[numpy.random.randint(A2.shape[0])]
-		# p3 = 0.5 * (p1 + p2)
-		p3 = numpy.random.rand(self.feature_count_)
-		score = self.score(X, y)
-		for i in range(0, len(self.classes_)):
-			old = self.ref_points[i]
-			temp = numpy.append(old, p3.reshape(1,self.feature_count_), axis=0)
-			self.ref_points[i] = temp
-			new_score = self.score(X, y)
-			if new_score <= score:
-				# not an improvement
-				self.ref_points[i] = old
-			else:
-				# improvement
-				score = new_score
+	def to_param_array
 
 	def predict(self, X):
 		# Check is fit had been called
