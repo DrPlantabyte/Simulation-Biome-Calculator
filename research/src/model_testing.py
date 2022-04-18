@@ -135,8 +135,15 @@ def main():
 	def opti_rp(*params):
 		rp.set_param_array(params)
 		return rp.score(bfeatures, blabels)
-	opt_p, iters = hillclimb.maximize(opti_rp, rp.get_param_array(), precision=0.1, iteration_limit=100)
-	print('...completed in %s iterations' % iters)
+	opti_batch_size = 10
+	iter_count = 0
+	for batch in range(0, opti_batch_size):
+		opt_p, iters = hillclimb.maximize(opti_rp, rp.get_param_array(), precision=0.1, iteration_limit=10)
+		iter_count += iters
+		if iters < opti_batch_size:
+			break
+		zpickle(opt_p, 'opti-iter-%s.pickle.gz' % iter_count)
+	print('...completed in %s iterations' % iter_count)
 	rp.set_param_array(opt_p)
 	print('new params:', rp.get_param_array())
 	print('optimized definitions classifier...')
@@ -213,7 +220,7 @@ def fit_and_score(pipe: Pipeline, input_data: DataFrame, labels: ndarray):
 	print('\trecall - true positives / real number')
 	print(classification_report(y_true=labels, y_pred=pipe.predict(input_data)))
 	percent_accuracy = 100 * pipe.score(X=input_data, y=labels)
-	print('Overall accuracy: %s %%' % int(percent_accuracy))
+	print('Overall accuracy: %s %%' % int(percent_accuracy+0.5))
 
 
 class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
