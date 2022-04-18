@@ -134,7 +134,7 @@ def main():
 	print('old params:', rp.get_param_array())
 	def opti_rp(*params):
 		rp.set_param_array(params)
-		return rp.score(bfeatures, blabels)
+		return rp_pipe.score(bfeatures, blabels)
 	opti_batch_size = 10
 	iter_count = 0
 	for batch in range(0, opti_batch_size):
