@@ -121,7 +121,7 @@ def main():
 	print(classification_report(y_true=blabels, y_pred=bc.predict(bfeatures)))
 	percent_accuracy = 100 * bc.score(X=bfeatures, y=blabels)
 	print('Overall accuracy: %s %%' % int(percent_accuracy))
-	exit(1)
+
 
 	rp_pipe = Pipeline([
 		('normalize', MinMaxScaler()),
@@ -129,6 +129,21 @@ def main():
 	])
 	print('reference point classifier...')
 	fit_and_score(rp_pipe, input_data=bfeatures, labels=blabels)
+	print('optimizing...')
+	rp = rp_pipe['my_classifier']
+	print('old params:', rp.get_param_array())
+	def opti_rp(*params):
+		rp.set_param_array(params)
+		return rp.score(bfeatures, blabels)
+	opt_p, iters = hillclimb.maximize(opti_rp, rp.get_param_array(), precision=0.1, iteration_limit=100)
+	print('...completed in %s iterations' % iters)
+	rp.set_param_array(opt_p)
+	print('new params:', rp.get_param_array())
+	print('optimized definitions classifier...')
+	# fit_and_score(bc, input_data=features, labels=labels)
+	print(classification_report(y_true=blabels, y_pred=rp.predict(bfeatures)))
+	percent_accuracy = 100 * rp.score(X=bfeatures, y=blabels)
+	print('Overall accuracy: %s %%' % int(percent_accuracy))
 
 	# for dtree_size in range(2,10):
 	dtree_size = 6
@@ -330,10 +345,11 @@ class ReferencePointClassifier(BaseEstimator, TransformerMixin, ClassifierMixin)
 		X, y = check_X_y(X, y)
 		# Store the classes seen during fit
 		self.classes_ = unique_labels(y)
+		self.class_count_ = len(self.classes_)
 		self.feature_count_ = len(X[0])
 		# fitting operation
 		ref_points = []
-		for i in range(0, len(self.classes_)):
+		for i in range(0, self.class_count_):
 			L = self.classes_[i]
 			km = KMeans(n_clusters=self.num_pts_per_class)
 			km.fit(X[y == L])
@@ -343,7 +359,11 @@ class ReferencePointClassifier(BaseEstimator, TransformerMixin, ClassifierMixin)
 		# Return the classifier
 		return self
 
-	def to_param_array
+	def get_param_array(self):
+		return self.ref_points.reshape((self.class_count_ * self.num_pts_per_class * self.feature_count_,))
+
+	def set_param_array(self, p: ndarray):
+		self.ref_points = numpy.asarray(p).reshape((self.class_count_, self.num_pts_per_class, self.feature_count_))
 
 	def predict(self, X):
 		# Check is fit had been called
