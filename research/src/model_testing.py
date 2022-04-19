@@ -432,7 +432,10 @@ def classify_biomes(altitude: ndarray, mean_temp: ndarray, annual_precip: ndarra
 	biomes[(mean_temp+temp_var <= 0)] = Biome.ICE_SHEET.value
 	## astronomical biomes
 	biomes[terrestrial_biomes * (mean_temp >= boiling_temp)] = Biome.MOONSCAPE.value
-	cryogen_temp = -83 # based on methane
+	### cryogen params based on liquid nitrogen ( https://www.engineeringtoolbox.com/nitrogen-d_1421.html )
+	cryo_crit_temp = -147
+	cryo_min_temp = -210
+	cryo_crit_pressure = 3400 # kPa
 	# TODO
 	return biomes
 
