@@ -413,6 +413,9 @@ def classify_biomes(altitude: ndarray, mean_temp: ndarray, annual_precip: ndarra
 	biomes[terrestrial_biomes] = terrestrial_reference_classes[closest]
 	### training set didn't have tundra :(
 	biomes[terrestrial_biomes * (mean_temp < 5) * (mean_temp+temp_var > 0)] = Biome.TUNDRA.value
+	### turn over-saturated rainfall areas to wetland
+	max_rain_limit = 4170
+	biomes[terrestrial_biomes * (mean_temp >= 5) * (annual_precip > max_rain_limit)] = Biome.WETLAND.value
 	## aquatic biomes
 	aquatic_biomes = altitude <= 0
 	biomes[aquatic_biomes] = Biome.DEEP_OCEAN.value
@@ -421,14 +424,15 @@ def classify_biomes(altitude: ndarray, mean_temp: ndarray, annual_precip: ndarra
 	biomes[aquatic_biomes * (solar_flux >= 85) * (mean_temp > 5) * (mean_temp < 20)] = Biome.SEA_FOREST.value
 	biomes[aquatic_biomes * (solar_flux >= 85) * (mean_temp >= 20) * (mean_temp < 30)] = Biome.TROPICAL_REEF.value
 	## extreme biomes
+	min_rain_limit = 110
+	biomes[terrestrial_biomes * (annual_precip < min_rain_limit) * (mean_temp > 15)] = Biome.SAND_SEA.value
+	biomes[terrestrial_biomes * (annual_precip < min_rain_limit) * (mean_temp <= 15)] = Biome.BARREN.value
 	boiling_temp = boiling_point(pressure)
 	biomes[aquatic_biomes * (mean_temp >= boiling_temp)] = Biome.BOILING_SEA.value
-	biomes[(mean_temp+temp_var <= 0)] = Biome.ICE_SHEET
-	too_dry = # TODO
-	biomes[terrestrial_biomes * (annual_precip < )]
+	biomes[(mean_temp+temp_var <= 0)] = Biome.ICE_SHEET.value
 	## astronomical biomes
 	biomes[terrestrial_biomes * (mean_temp >= boiling_temp)] = Biome.MOONSCAPE.value
-
+	cryogen_temp = -83 # based on methane
 	# TODO
 	return biomes
 

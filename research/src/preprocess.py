@@ -31,7 +31,11 @@ def main():
 	#altitude[altitude < 0] = nan
 	imshow(numpy.clip(altitude[::10,::10], -200, 3000), 'altitude', cmap='terrain')
 	surface_temp_mean = zunpickle(surface_temp_mean_zpickle)
-	imshow(numpy.clip(surface_temp_mean[::10,::10], 0, 50), 'surface temperature')
+	imshow(numpy.clip(surface_temp_mean[::10,::10], -50, 50), 'surface temperature')
+	surface_temp_range = zunpickle(surface_temp_variation_zpickle)
+	imshow(surface_temp_range[::10, ::10], 'surface temp variation')
+	precip_mean = zunpickle(annual_precip_mean_zpickle)
+	imshow(numpy.log10(precip_mean[::10, ::10]), '(log10) annual precipitation')
 
 	print('Converting biomes...')
 	# convert to DrPlantabyte biomes
@@ -125,10 +129,6 @@ def main():
 
 	# prepare fearures and labels
 	print('Extracting features...')
-	surface_temp_range = zunpickle(surface_temp_variation_zpickle)
-	imshow(surface_temp_range[::10, ::10], 'surface temp variation')
-	precip_mean = zunpickle(annual_precip_mean_zpickle)
-	imshow(numpy.log10(precip_mean[::10, ::10]), '(log10) annual precipitation')
 	small_feature_set = extract_features_and_labels(
 		altitude_m=altitude[::10, ::10],
 		mean_temp_C = surface_temp_mean[::10, ::10],
