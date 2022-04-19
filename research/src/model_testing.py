@@ -101,7 +101,7 @@ def main():
 		exit(1)
 	# dtree_zpickle = path.join(data_dir, 'dtree-model.pickle.gz')
 	print('definitions classifier...')
-	bc = BiomeClassifier(features.columns)
+	bc = OldBiomeClassifier(features.columns)
 	fit_and_score(bc, input_data=features, labels=labels)
 	##
 	balancer = RandomUnderSampler()
@@ -211,6 +211,12 @@ def main():
 	print(classification_report(y_true=blabels, y_pred=rp.predict(bfeatures)))
 	percent_accuracy = 100 * rp_pipe.score(X=bfeatures, y=blabels)
 	print('Overall accuracy: %s %%' % int(percent_accuracy))
+	print('rp.classes_ =', rp.classes_)
+	normalizer: MinMaxScaler = rp_pipe['normalize']
+	print('normalizer.data_min_ =', normalizer.data_min_)
+	print('normalizer.data_max_ =', normalizer.data_max_)
+	print('normalizer.data_range_ =', normalizer.data_range_)
+	print('normalizer.scale_ =', normalizer.scale_)
 
 	# for dtree_size in range(2,10):
 	dtree_size = 6
@@ -282,8 +288,165 @@ def fit_and_score(pipe: Pipeline, input_data: DataFrame, labels: ndarray):
 	percent_accuracy = 100 * pipe.score(X=input_data, y=labels)
 	print('Overall accuracy: %s %%' % int(percent_accuracy+0.5))
 
+## inputs:  ['solar_flux', 'pressure', 'altitude', 'temperature_mean', 'temperature_range', 'precipitation']
+terrestrial_data_normalizer_minmaxes = DataFrame(numpy.asarray([
+	## mins
+	[ 1.1084170e-19,  4.5783211e+01, -1.6270000e+03, -2.4903875e+01,  1.2730642e-01,  0.0000000e+00],
+	## maxes
+	[1.9760277e+03, 1.6078096e+04, 6.3260000e+03, 5.4133900e+01, 4.2466022e+01,  5.8917738e+04]
+], dtype=float32),
+	columns=['solar_flux', 'pressure', 'altitude', 'temperature_mean', 'temperature_range', 'precipitation']
+)
 
-class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
+terrestrial_reference_classes = numpy.asarray([1, 2, 3, 4, 5, 6, 8, 9], dtype=uint8)
+terrestrial_reference_points = numpy.asarray([
+## wetlands
+[[9.66866970e-01, 3.44602927e-03, 2.21051112e-01, 6.68643355e-01,
+ 1.16806954e-01, 3.32654789e-02],
+[4.23255265e-01, 3.67337209e-03, 2.17167795e-01, 2.33419389e-01,
+ 6.37225509e-01, 1.74140818e-02],
+[4.76645857e-01, 9.57702287e-03, 2.21521258e-01, 3.82326394e-01,
+ 3.45598221e-01, 2.20833831e-02],
+[8.00941825e-01, 3.66082601e-03, 2.37592861e-01, 5.87369025e-01,
+ 2.99632013e-01, 2.10805945e-02],
+[5.61772823e-01, 3.33963661e-03, 2.29130179e-01, 3.05382371e-01,
+ 6.42809033e-01, 1.41723473e-02]],
+
+[[9.89321232e-01, 3.35620833e-03, 2.28097796e-01, 6.73157573e-01,
+ 8.69841650e-02, 3.87548171e-02],
+[9.04909372e-01, 3.06568365e-03, 2.82655239e-01, 6.13019466e-01,
+ 1.73770785e-01, 3.27553898e-02],
+[7.67642021e-01, 3.95438354e-03, 2.42302433e-01, 5.22339344e-01,
+ 2.47791708e-01, 2.49677077e-02],
+[9.88941193e-01, 2.98168021e-03, 2.96959370e-01, 6.42321587e-01,
+ 8.64978433e-02, 3.34428139e-02],
+[9.70767677e-01, 2.14036391e-03, 4.65123057e-01, 5.65884590e-01,
+ 1.30025938e-01, 3.25797834e-02]],
+
+[[5.33872604e-01, 3.24080512e-03, 2.45580614e-01, 3.42286527e-01,
+ 5.98508716e-01, 1.21523589e-02],
+[9.47117805e-01, 3.00760171e-03, 2.93881506e-01, 6.73809648e-01,
+ 1.72600970e-01, 2.12327447e-02],
+[7.72515893e-01, 2.98179965e-03, 2.96573430e-01, 5.22810459e-01,
+ 3.25278640e-01, 2.12862641e-02],
+[6.75903678e-01, 3.13613890e-03, 2.64301360e-01, 3.99888694e-01,
+ 5.19578099e-01, 1.56620871e-02],
+[5.40472388e-01, 3.42405331e-03, 2.30422705e-01, 4.39976603e-01,
+ 4.12625283e-01, 1.38190407e-02]],
+
+[[4.93523210e-01, 6.17733039e-03, 2.27266490e-01, 4.03869301e-01,
+ 3.39339316e-01, 2.22206078e-02],
+[5.96311033e-01, 2.68650148e-03, 3.45203191e-01, 3.87292534e-01,
+ 4.35955614e-01, 1.26070864e-02],
+[5.29044151e-01, 3.22159147e-03, 2.48883799e-01, 3.29995036e-01,
+ 5.76287508e-01, 1.34433182e-02],
+[7.21484363e-01, 2.99842726e-03, 2.92114198e-01, 5.12095809e-01,
+ 3.24575722e-01, 2.22618878e-02],
+[8.81542325e-01, 1.64361310e-03, 5.71533740e-01, 4.83431935e-01,
+ 2.16882482e-01, 2.16850471e-02]],
+
+[[9.59432840e-01, 3.11504863e-03, 2.74776757e-01, 7.23367631e-01,
+ 1.78709954e-01, 1.92522723e-02],
+[4.74296480e-01, 3.23710404e-03, 2.58537203e-01, 2.61353970e-01,
+ 6.34064853e-01, 1.12368092e-02],
+[6.64515555e-01, 3.18234414e-03, 3.06940168e-01, 5.22040606e-01,
+ 6.53039217e-01, 7.28974305e-03],
+[7.66061962e-01, 3.05869710e-03, 2.89622694e-01, 5.94409645e-01,
+ 3.83008778e-01, 1.39850471e-02],
+[8.42199624e-01, 1.25335844e-03, 6.73347592e-01, 4.97755945e-01,
+ 3.63429934e-01, 9.26538371e-03]],
+
+[[8.95991564e-01, 1.89115328e-03, 5.33740938e-01, 6.67914510e-01,
+ 3.13437641e-01, 7.20088789e-03],
+[4.01492923e-01, 3.23354616e-03, 2.45115086e-01, 1.81874037e-01,
+ 7.13867784e-01, 9.90626216e-03],
+[4.52764899e-01, 3.29471100e-03, 2.54418224e-01, 2.73410648e-01,
+ 5.72441339e-01, 1.25368591e-02],
+[8.49489868e-01, 3.10155470e-03, 2.77285367e-01, 7.32748032e-01,
+ 4.19105798e-01, 4.85429959e-03],
+[9.29874182e-01, 3.12989624e-03, 2.72464097e-01, 7.93554485e-01,
+ 2.78345227e-01, 6.77830819e-03]],
+
+[[3.31589788e-01, 4.77934768e-03, 2.59708703e-01, 1.02509975e-01,
+ 6.02857947e-01, 1.10007264e-02],
+[8.50780249e-01, 1.34407193e-03, 6.52715206e-01, 5.39237857e-01,
+ 4.32048351e-01, 6.30054483e-03],
+[4.08641100e-01, 3.13554448e-03, 3.11209381e-01, 2.22716048e-01,
+ 4.45691258e-01, 1.42845185e-02],
+[6.29764795e-01, 2.41161673e-03, 3.99556339e-01, 3.67565900e-01,
+ 4.15959805e-01, 1.53236073e-02],
+[8.35651517e-01, 3.56870447e-03, 2.58797556e-01, 7.30460644e-01,
+ 3.78586709e-01, 3.84847308e-03]],
+
+[[9.33901429e-01, 3.17807565e-03, 2.64219820e-01, 8.35781872e-01,
+ 2.90852070e-01, 1.64775155e-03],
+[8.71193349e-01, 3.09935329e-03, 2.80733943e-01, 8.08090866e-01,
+ 4.04747546e-01, 1.74297113e-03],
+[7.51265168e-01, 2.74931733e-03, 3.49162489e-01, 6.90088212e-01,
+ 5.94493032e-01, 2.51922244e-03],
+[8.31308663e-01, 8.75420170e-04, 7.69911528e-01, 4.75095689e-01,
+ 4.20278132e-01, 4.32941131e-03],
+[2.46214390e-01, 3.61543931e-02, 1.97870716e-01, 7.81985641e-01,
+ 4.34179634e-01, 3.16758081e-03]]
+	], dtype=float32)
+def classify_biomes(altitude: ndarray, mean_temp: ndarray, annual_precip: ndarray, temp_var: ndarray, pressure: ndarray, solar_flux: ndarray) -> ndarray:
+	biomes = numpy.zeros(altitude.shape, dtype=numpy.uint8)
+	# NOTE: boolean * is AND and + is OR
+	## terrestrial biomes
+	terrestrial_biomes = (altitude > 0)
+	minmax = terrestrial_data_normalizer_minmaxes
+	### normalize data for nearest control point analysis
+	t_data = numpy.asarray([
+		### ['solar_flux', 'pressure', 'altitude', 'temperature_mean', 'temperature_range', 'precipitation']
+		(solar_flux - minmax['solar_flux'][0])/(minmax['solar_flux'][1]-minmax['solar_flux'][0]),
+		(pressure - minmax['pressure'][0])/(minmax['pressure'][1]-minmax['pressure'][0]),
+		(altitude - minmax['altitude'][0])/(minmax['altitude'][1]-minmax['altitude'][0]),
+		(mean_temp - minmax['temperature_mean'][0])/(minmax['temperature_mean'][1]-minmax['temperature_mean'][0]),
+		(temp_var - minmax['temperature_range'][0])/(minmax['temperature_range'][1]-minmax['temperature_range'][0]),
+		(annual_precip - minmax['precipitation'][0])/(minmax['precipitation'][1]-minmax['precipitation'][0]),
+	])
+	class_dists = numpy.zeros((len(terrestrial_reference_classes), len(altitude)), dtypy=float32) + numpy.inf
+	for i in range(0, len(terrestrial_reference_classes)):
+		class_dists[i] = euclidean_distances(t_data, terrestrial_reference_points[i]).min(axis=1)
+
+	closest = numpy.argmin(class_dists, axis=0)
+	biomes[terrestrial_biomes] = terrestrial_reference_classes[closest]
+	### training set didn't have tundra :(
+	biomes[terrestrial_biomes * (mean_temp < 5) * (mean_temp+temp_var > 0)] = Biome.TUNDRA.value
+	## aquatic biomes
+	aquatic_biomes = altitude <= 0
+	biomes[aquatic_biomes] = Biome.DEEP_OCEAN.value
+	biomes[aquatic_biomes * (altitude > -200)] = Biome.SHALLOW_OCEAN.value
+	biomes[aquatic_biomes * (solar_flux >= 85)] = Biome.ROCKY_SHALLOWS.value
+	biomes[aquatic_biomes * (solar_flux >= 85) * (mean_temp > 5) * (mean_temp < 20)] = Biome.SEA_FOREST.value
+	biomes[aquatic_biomes * (solar_flux >= 85) * (mean_temp >= 20) * (mean_temp < 30)] = Biome.TROPICAL_REEF.value
+	## extreme biomes
+	boiling_temp = boiling_point(pressure)
+	biomes[aquatic_biomes * (mean_temp >= boiling_temp)] = Biome.BOILING_SEA.value
+	biomes[(mean_temp+temp_var <= 0)] = Biome.ICE_SHEET
+	too_dry = # TODO
+	biomes[terrestrial_biomes * (annual_precip < )]
+	## astronomical biomes
+	biomes[terrestrial_biomes * (mean_temp >= boiling_temp)] = Biome.MOONSCAPE.value
+
+	# TODO
+	return biomes
+
+def boiling_point(pressure_kPa: ndarray) -> ndarray:
+	ln_mbar = numpy.log(pressure_kPa*10)
+	coeffs_low_pressure = numpy.asarray([0.051769, 0.65545, 10.387, -10.619], dtype=float32)
+	coeffs_high_pressure = numpy.asarray([0.47092, -8.2481, 75.520, -183.98], dtype=float32)
+	lp = numpy.polyval(coeffs_low_pressure, ln_mbar)
+	hp = numpy.polyval(coeffs_high_pressure, ln_mbar)
+	out = lp
+	out[pressure_kPa > 1013] = hp
+	return out
+
+class OldBiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
+	def __init__(self):
+		pass
+
+class OldBiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 	def __init__(self, columns):
 		# constants
 		self.jungle_ps = 0.748

@@ -28,6 +28,7 @@ def main():
 
 	##
 	altitude = zunpickle(altitude_zpickle)
+	#altitude[altitude < 0] = nan
 	imshow(numpy.clip(altitude[::10,::10], -200, 3000), 'altitude', cmap='terrain')
 	surface_temp_mean = zunpickle(surface_temp_mean_zpickle)
 	imshow(numpy.clip(surface_temp_mean[::10,::10], 0, 50), 'surface temperature')
