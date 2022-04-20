@@ -5,7 +5,7 @@ from PIL import Image
 from copy import deepcopy
 
 from imblearn.under_sampling import RandomUnderSampler
-from numpy import ndarray, nan, uint8, float32, logical_and, logical_or, clip, sin, cos, square, sqrt, power, log10
+from numpy import ndarray, nan, uint8, float32, logical_and, logical_or, logical_not, clip, sin, cos, square, sqrt, power, log10
 from pandas import DataFrame
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import *
@@ -45,6 +45,8 @@ def main():
 			pressure_kPa=dev_data['pressure']
 		)
 	})
+	balancer = RandomUnderSampler()
+	bfeatures, blabels = balancer.fit_resample(features, labels)
 
 
 	## lets take a peek at the data
@@ -106,15 +108,13 @@ def main():
 		fit_and_score(earth_bc, input_data=features, labels=labels)
 		print('EXOPLANET MODE:')
 		exo_bc = BiomeClassifier(columns=features.columns, exoplanet=True)
-		fit_and_score(exo_bc, input_data=features, labels=labels)
+		fit_and_score(exo_bc, input_data=bfeatures, labels=blabels)
 		exit(1)
 	# dtree_zpickle = path.join(data_dir, 'dtree-model.pickle.gz')
 	print('definitions classifier...')
 	bc = OldBiomeClassifier(features.columns)
 	fit_and_score(bc, input_data=features, labels=labels)
 	##
-	balancer = RandomUnderSampler()
-	bfeatures, blabels = balancer.fit_resample(features, labels)
 	print('balanced data:', len(bfeatures), 'rows')
 	print('old params:', bc.get_param_array())
 	def opti_bc(*params):
@@ -419,7 +419,9 @@ def classify_biomes(altitude: ndarray, mean_temp: ndarray, annual_precip: ndarra
 		class_dists[i] = euclidean_distances(t_data, terrestrial_reference_points[i]).min(axis=1)
 
 	closest = numpy.argmin(class_dists, axis=0)
-	biomes[terrestrial_biomes] = terrestrial_reference_classes[closest]
+	biomes = numpy.ma.masked_array(biomes, mask=logical_not(terrestrial_biomes))
+	biomes[:] = terrestrial_reference_classes[closest]
+	biomes = numpy.asarray(biomes)
 	### training set didn't have tundra :(
 	biomes[terrestrial_biomes * (mean_temp < 5) * (mean_temp+temp_var > 0)] = Biome.TUNDRA.value
 	### turn over-saturated rainfall areas to wetland
@@ -462,9 +464,9 @@ def boiling_point(pressure_kPa: ndarray) -> ndarray:
 	coeffs_high_pressure = numpy.asarray([0.47092, -8.2481, 75.520, -183.98], dtype=float32)
 	lp = numpy.polyval(coeffs_low_pressure, ln_mbar)
 	hp = numpy.polyval(coeffs_high_pressure, ln_mbar)
-	out = lp
-	out[pressure_kPa > 1013] = hp
-	return out
+	out = numpy.ma.masked_array(lp, mask=pressure_kPa <= 1013)
+	out[:] = hp
+	return numpy.asarray(out)
 
 class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 	def __init__(self, columns, exoplanet=False):
