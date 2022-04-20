@@ -31,11 +31,14 @@ def main():
 	#altitude[altitude < 0] = nan
 	imshow(numpy.clip(altitude[::10,::10], -200, 3000), 'altitude', cmap='terrain')
 	surface_temp_mean = zunpickle(surface_temp_mean_zpickle)
-	imshow(numpy.clip(surface_temp_mean[::10,::10], -50, 50), 'surface temperature')
+	shadow = numpy.clip(altitude[::10,::10], 0, 1).astype(numpy.int)
+	imshow(numpy.clip(surface_temp_mean[::10,::10], -50, 50), 'surface temperature', shadow_img=shadow)
 	surface_temp_range = zunpickle(surface_temp_variation_zpickle)
-	imshow(surface_temp_range[::10, ::10], 'surface temp variation')
+	imshow(surface_temp_range[::10, ::10], 'surface temp variation', shadow_img=shadow)
 	precip_mean = zunpickle(annual_precip_mean_zpickle)
-	imshow(numpy.log10(precip_mean[::10, ::10]), '(log10) annual precipitation')
+	imshow(numpy.log10(precip_mean[::10, ::10]), '(log10) annual precipitation', shadow_img=shadow)
+	imshow(numpy.sqrt(precip_mean[::10, ::10]), 'sqrt annual precipitation', shadow_img=shadow)
+	imshow(1.0/(precip_mean[::10, ::10]), 'inverse annual precipitation', shadow_img=shadow)
 
 	print('Converting biomes...')
 	# convert to DrPlantabyte biomes
@@ -309,8 +312,10 @@ def zunpickle(filepath):
 	else:
 		raise FileNotFoundError("File '%s' does not exist" % path.abspath(filepath))
 
-def imshow(img: ndarray, title=None, cmap='gist_rainbow'):
+def imshow(img: ndarray, title=None, cmap='gist_rainbow', shadow_img=None):
 	pyplot.imshow(img, alpha=1, cmap=cmap)
+	if shadow_img is not None:
+		pyplot.imshow(img, alpha=1, cmap='gist_gray')
 	pyplot.gca().invert_yaxis()
 	if title is not None:
 		pyplot.title(title)

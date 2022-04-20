@@ -10,6 +10,17 @@ cpdef unsigned char classify_biome(
     float temp_var_C,
     float annual_precip_mm
 ):
+	## terrestrial biomes
+	if altitude_m > 0:
+		### rescale to normalize so that distance calcs aren't biased
+		float norm_sol_flux = rescale(mean_solar_flux_Wpm2, 0.0, 1976.0277)
+		float norm_mtemp = rescale(mean_temp_C, -24.903875, 54.133900)
+		float norm_vtemp = rescale(temp_var_C, 0.12730642, 42.466022)
+		float norm_precip = rescale(annual_precip_mm, 0.0, 58917.738)
+	## marine biomes
+	## extreme biomes
+	## astronomical biomes
+	## Done!
     return Biome.UNKOWN.value
 
 cpdef unsigned char classify_biome_on_planet(
@@ -65,3 +76,6 @@ cpdef float clip(float x, float xmin, float xmax):
     if x > xmax:
         return xmax
     return x
+
+cpdef float rescale(x, xmin, xmax):
+	return (x - xmin) / (xmax - xmin)
