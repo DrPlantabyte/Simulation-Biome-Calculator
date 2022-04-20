@@ -12,4 +12,5 @@ keras
 tensorflow
 modis_tools
 imbalanced-learn
+cython
 pygdal==3.2.2.10 # for $gdalinfo --version -> 3.2.2
