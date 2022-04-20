@@ -28,11 +28,12 @@ def main():
 	src_data: DataFrame = zunpickle(data_sets_zpickles[0])
 	# remove unclassified rows
 	src_data: DataFrame = src_data[src_data['biome'] != 0]
+	# change rainfall to sqrt or log10 to turn source into something resembling a normal distribution
+	src_data['precipitation'] = numpy.sqrt(src_data['precipitation']) # choosing sqrt so that zeroes don't cause trouble
 	# remove unclassified rows and reduce data size and remove oceans
 	dev_data = src_data[src_data['biome'] < 0x10]
 	# add tundra
 	# TODO
-	# change rainfall to
 	print('columns: ', list(dev_data.columns))
 	labels = dev_data['biome']
 	features: DataFrame = dev_data.drop(['biome', 'gravity'], axis=1, inplace=False)
