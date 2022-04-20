@@ -99,6 +99,15 @@ def main():
 				x_range=(-20,50), x_grids=35, y_range=(0,1), y_grids=20
 			)
 		exit(1)
+	do_training = False
+	if not do_training:
+		print('Biome classifier accuracy:')
+		earth_bc = BiomeClassifier(columns=features.columns, exoplanet=False)
+		fit_and_score(earth_bc, input_data=features, labels=labels)
+		print('EXOPLANET MODE:')
+		exo_bc = BiomeClassifier(columns=features.columns, exoplanet=True)
+		fit_and_score(exo_bc, input_data=features, labels=labels)
+		exit(1)
 	# dtree_zpickle = path.join(data_dir, 'dtree-model.pickle.gz')
 	print('definitions classifier...')
 	bc = OldBiomeClassifier(features.columns)
@@ -389,7 +398,7 @@ terrestrial_reference_points = numpy.asarray([
 [2.46214390e-01, 3.61543931e-02, 1.97870716e-01, 7.81985641e-01,
  4.34179634e-01, 3.16758081e-03]]
 	], dtype=float32)
-def classify_biomes(altitude: ndarray, mean_temp: ndarray, annual_precip: ndarray, temp_var: ndarray, pressure: ndarray, solar_flux: ndarray) -> ndarray:
+def classify_biomes(altitude: ndarray, mean_temp: ndarray, annual_precip: ndarray, temp_var: ndarray, pressure: ndarray, solar_flux: ndarray, exoplanet=False) -> ndarray:
 	biomes = numpy.zeros(altitude.shape, dtype=numpy.uint8)
 	# NOTE: boolean * is AND and + is OR
 	## terrestrial biomes
@@ -404,8 +413,8 @@ def classify_biomes(altitude: ndarray, mean_temp: ndarray, annual_precip: ndarra
 		(mean_temp - minmax['temperature_mean'][0])/(minmax['temperature_mean'][1]-minmax['temperature_mean'][0]),
 		(temp_var - minmax['temperature_range'][0])/(minmax['temperature_range'][1]-minmax['temperature_range'][0]),
 		(annual_precip - minmax['precipitation'][0])/(minmax['precipitation'][1]-minmax['precipitation'][0]),
-	])
-	class_dists = numpy.zeros((len(terrestrial_reference_classes), len(altitude)), dtypy=float32) + numpy.inf
+	]).T
+	class_dists = numpy.zeros((len(terrestrial_reference_classes), len(altitude)), dtype=float32) + numpy.inf
 	for i in range(0, len(terrestrial_reference_classes)):
 		class_dists[i] = euclidean_distances(t_data, terrestrial_reference_points[i]).min(axis=1)
 
@@ -430,13 +439,21 @@ def classify_biomes(altitude: ndarray, mean_temp: ndarray, annual_precip: ndarra
 	boiling_temp = boiling_point(pressure)
 	biomes[aquatic_biomes * (mean_temp >= boiling_temp)] = Biome.BOILING_SEA.value
 	biomes[(mean_temp+temp_var <= 0)] = Biome.ICE_SHEET.value
-	## astronomical biomes
-	biomes[terrestrial_biomes * (mean_temp >= boiling_temp)] = Biome.MOONSCAPE.value
-	### cryogen params based on liquid nitrogen ( https://www.engineeringtoolbox.com/nitrogen-d_1421.html )
-	cryo_crit_temp = -147
-	cryo_min_temp = -210
-	cryo_crit_pressure = 3400 # kPa
-	# TODO
+	if exoplanet:
+		## astronomical biomes
+		biomes[terrestrial_biomes * (mean_temp >= boiling_temp)] = Biome.MOONSCAPE.value
+		### cryogen params based on liquid nitrogen ( https://www.engineeringtoolbox.com/nitrogen-d_1421.html )
+		#### alternative cryogens: ammonia, methane; both would oxidize in presense of oxygen, so not as interesting
+		#### (oxygen is a pretty common element)
+		cryo_crit_temp = -147 # C
+		cryo_crit_pressure = 3400 # kPa
+		cryo_triple_temp = -210 # C
+		# cryo_triple_pressure = 12.5 # kPa
+		cryo = (mean_temp > cryo_triple_temp)*(mean_temp < cryo_crit_temp)*(pressure < cryo_crit_pressure)*( pressure > (1.6298e9*numpy.exp(0.08898*mean_temp)))
+		biomes[aquatic_biomes * cryo] = Biome.CRYOGEN_SEA.value
+		rock_melting_point = 600
+		rock_boiling_point = 2230
+		biomes[aquatic_biomes * (mean_temp > rock_melting_point) * (mean_temp < rock_boiling_point)] = Biome.MAGMA_SEA.value
 	return biomes
 
 def boiling_point(pressure_kPa: ndarray) -> ndarray:
@@ -449,9 +466,51 @@ def boiling_point(pressure_kPa: ndarray) -> ndarray:
 	out[pressure_kPa > 1013] = hp
 	return out
 
-class OldBiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
-	def __init__(self):
-		pass
+class BiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
+	def __init__(self, columns, exoplanet=False):
+		# sanity check
+		self.exoplanet = exoplanet
+		self.columns = list(columns)
+		for req in ['temperature_mean', 'temperature_range', 'precipitation', 'altitude', 'pressure', 'solar_flux']:
+			if req not in self.columns:
+				raise ValueError('Missing required data column %s' % req)
+		self.index_mean_temp = self.columns.index('temperature_mean')
+		self.index_temp_var = self.columns.index('temperature_range')
+		self.index_precip = self.columns.index('precipitation')
+		self.index_pressure = self.columns.index('pressure')
+		self.index_altitude = self.columns.index('altitude')
+		self.index_solar_flux = self.columns.index('solar_flux')
+
+	def fit(self, X, y):
+		# Check that X and y have correct shape
+		X: ndarray = numpy.asarray(X)
+		y: ndarray = numpy.asarray(y)
+		X, y = check_X_y(X, y)
+		# Store the classes seen during fit
+		self.classes_ = unique_labels(y)
+		self.feature_count_ = len(X[0])
+		## no fitting operation
+		# Return the classifier
+		return self
+
+	def predict(self, X):
+		# Check is fit had been called
+		check_is_fitted(self)
+
+		# Input validation
+		X = check_array(X)
+		X = numpy.asarray(X)
+
+		return classify_biomes(
+			altitude=X[:, self.index_altitude],
+			mean_temp=X[:, self.index_mean_temp],
+			annual_precip=X[:, self.index_precip],
+			temp_var=X[:, self.index_temp_var],
+			pressure=X[:, self.index_pressure],
+			solar_flux=X[:, self.index_solar_flux],
+			exoplanet=self.exoplanet
+		)
+
 
 class OldBiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
 	def __init__(self, columns):
