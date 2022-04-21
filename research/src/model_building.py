@@ -22,18 +22,27 @@ import hillclimb
 
 def main():
 	# RELOAD = True
+	PATCH_SOLAR_FLUX = True
 	data_dir = 'data'
 	data_sets_zpickles = [path.join(data_dir, 'Earth_biome_DataFrame-%s.pickle.gz' % n) for n in range(0,4)]
 	# data splitting: 3 training batches and 1 test batch
 	src_data: DataFrame = zunpickle(data_sets_zpickles[0])
+	if PATCH_SOLAR_FLUX:
+		# had accidentally used pi/2 instead of 2/pi
+		two_over_pi = 2 / numpy.pi
+		pi_over_2 = 0.5 * numpy.pi
+		src_data['solar_flux'] = src_data['solar_flux'] / pi_over_2 * two_over_pi
 	# remove unclassified rows
 	src_data: DataFrame = src_data[src_data['biome'] != 0]
-	# change rainfall to sqrt or log10 to turn source into something resembling a normal distribution
-	src_data['precipitation'] = numpy.sqrt(src_data['precipitation']) # choosing sqrt so that zeroes don't cause trouble
 	# remove unclassified rows and reduce data size and remove oceans
-	dev_data = src_data[src_data['biome'] < 0x10]
-	# add tundra
-	# TODO
+	dev_data = src_data[src_data['biome'] < 0x10].copy()
+	del src_data
+	# patch-in tundra
+	tmp_b = numpy.asarray(dev_data['biome'])
+	tmp_b[(dev_data['precipitation'] > 110) * (dev_data['temperature_mean'] < 5) \
+					  * (dev_data['temperature_mean'] + dev_data['temperature_range'] > 0)] = Biome.TUNDRA.value
+	dev_data['biome'] = tmp_b
+	del tmp_b
 	print('columns: ', list(dev_data.columns))
 	labels = dev_data['biome']
 	features: DataFrame = dev_data.drop(['biome', 'gravity'], axis=1, inplace=False)
@@ -105,7 +114,7 @@ def main():
 				x_range=(-20,50), x_grids=35, y_range=(0,1), y_grids=20
 			)
 		exit(1)
-	do_training = False
+	do_training = True
 	if not do_training:
 		print('Biome classifier accuracy:')
 		earth_bc = BiomeClassifier(columns=features.columns, exoplanet=False)
@@ -134,12 +143,29 @@ def main():
 	print(classification_report(y_true=blabels, y_pred=bc.predict(bfeatures)))
 	percent_accuracy = 100 * bc.score(X=bfeatures, y=blabels)
 	print('Overall accuracy: %s %%' % int(percent_accuracy))
+	zpickle(bc, 'bc.pickle.gz')
 
 
 	print('restricting features...')
-	# TODO
+	# change rainfall to sqrt or log10 to turn source into something resembling a normal distribution
+	bfeatures = bfeatures.assign(**{'sqrt_precipitation': numpy.sqrt(bfeatures['precipitation'])})
+	bfeatures = bfeatures.drop(['pressure', 'altitude', 'precipitation'], axis=1, inplace=False)
+	my_scaler = MinMaxScaler()
+	#my_scaler.fit(bfeatures)
+	my_scaler.fit(DataFrame(
+		columns=['solar_flux','temperature_mean','temperature_range','sqrt_precipitation'],
+		data=[
+			[  0, -20, 0 ,  0], # mins
+			[800, 50 , 35, 75] # maxes
+		]
+	))
+	print('normalized features', my_scaler.feature_names_in_)
+	print('mins  ', my_scaler.data_min_)
+	print('maxs  ', my_scaler.data_max_)
+	print('ranges', my_scaler.data_range_)
+	print(list(bfeatures.columns))
 	rp_pipe = Pipeline([
-		('normalize', MinMaxScaler()),
+		('normalize', my_scaler),
 		('my_classifier', ReferencePointClassifier(5))
 	])
 	print('reference point classifier...')
@@ -152,72 +178,13 @@ def main():
 		return rp_pipe.score(bfeatures, blabels)
 	opti_batch_size = 10
 	iter_count = 0
-	# for batch in range(0, opti_batch_size):
-	# 	opt_p, iters = hillclimb.maximize(opti_rp, rp.get_param_array(), precision=0.1, iteration_limit=10)
-	# 	iter_count += iters
-	# 	if iters < opti_batch_size:
-	# 		break
-	# 	zpickle(opt_p, 'opti-iter-%s.pickle.gz' % iter_count)
-	opt_p = [4.74522233e-01, 5.97136563e-02, 2.21170157e-01, 3.31737679e-01
-, 1.68830615e-01, 2.38661129e-02, 9.58740294e-01, 3.40067828e-03
-, 1.99193367e-01, 6.70710135e-01, 9.04792666e-02, 3.63164350e-02
-, 5.17211258e-01, 4.11254190e-02, 1.98408973e-01, 2.95791209e-01
-, 6.42506576e-01, 5.49450967e-02, 3.61655164e-01, -9.20337467e-03
-, 1.03954166e-01, 1.79754853e-01, 6.16359448e-01, 1.10553836e-02
-, -8.01116145e-01, 1.60361649e+00, 2.38641173e-01, 5.85226417e-01
-, 3.01822424e-01, 2.08827164e-02, -8.42267966e-01, 4.79010213e-03
-, 2.41739258e-01, 5.18335164e-01, 2.45613098e-01, 2.51809247e-02
-, 1.04527696e+00, -4.70551305e-02, 3.22202700e-01, 5.92476141e-01
-, 1.05346578e-01, 4.56759490e-02, 9.64450157e-01, -1.37392296e-03
-, 2.27874652e-01, 6.72113025e-01, 9.01038900e-02, 3.78424965e-02
-, 1.07403543e+00, 2.11025635e-03, 5.30940390e-01, 4.90665364e-01
-, 2.04334614e-01, 3.27762924e-02, 9.59799075e-01, 3.01728141e-03
-, 2.76172990e-01, 6.13597381e-01, 7.85429299e-02, 4.54119638e-02
-, 5.28845263e-01, 4.07051189e-02, 2.47987318e-01, 3.90981513e-01
-, 5.93736303e-01, 2.78222561e-02, 1.04114652e+00, -3.28336810e-03
-, 2.91753894e-01, 6.54442203e-01, 1.81461000e-01, 8.67428184e-03
-, 5.20863843e-01, 5.96471171e-02, 2.42642400e-01, 4.48208326e-01
-, 4.23211139e-01, -4.90405336e-03, 7.60191488e-01, -3.45635516e-02
-, 3.00020862e-01, 5.23062718e-01, 3.51038712e-01, 4.61989097e-02
-, 7.72914898e-01, 3.09479283e-03, 2.45043916e-01, 3.75516415e-01
-, 4.81523955e-01, 2.81092783e-02, 4.97509420e-01, -4.68194705e-02
-, 2.73140424e-01, 3.38627571e-01, 5.93735743e-01, 1.19503666e-02
-, 7.20489562e-01, 2.55982168e-03, 3.11639088e-01, 5.36003673e-01
-, 3.26463115e-01, 1.27768576e-02, 5.66884863e-01, -9.85462735e-03
-, 2.94655991e-01, 3.48561937e-01, 4.35687125e-01, -6.32250234e-03
-, 8.06999135e-01, -4.84098320e-02, 5.98830247e-01, 4.85298651e-01
-, 1.54572800e-01, 7.14108620e-02, 4.73877323e-01, 5.61311349e-02
-, 1.89685011e-01, 3.91044307e-01, 3.56962729e-01, 5.03646627e-02
-, 7.48842371e-01, -5.95166711e-02, 2.84548080e-01, 5.80330682e-01
-, 3.86792344e-01, 7.26229660e-03, -1.12948216e+00, 3.21608619e-03
-, 2.57012755e-01, 2.57744282e-01, 6.33007526e-01, 1.12029379e-02
-, 5.82783151e-01, -2.18458309e-02, 2.95717007e-01, 4.90978539e-01
-, 6.49286985e-01, 7.53348414e-03, 9.71849036e-01, -2.19252746e-02
-, 2.75546277e-01, 7.23628950e-01, 1.54027572e-01, 3.17102380e-02
-, 7.31836033e-01, -4.88117600e-02, 6.78535819e-01, 5.27396560e-01
-, 3.61248332e-01, 1.39877040e-02, 3.57735980e-01, -4.68094090e-02
-, 2.26241854e-01, 1.94145334e-01, 6.88113928e-01, -8.89836922e-03
-, -6.70242047e-01, 3.08203069e-03, 2.73266375e-01, 7.91979074e-01
-, 2.77801067e-01, 6.77557802e-03, 8.98902225e-01, 1.55581220e-02
-, 2.83997661e-01, 7.62390792e-01, 3.87480974e-01, 3.61068784e-02
-, 1.01486276e+00, 3.36348496e-03, 6.94801712e-01, 6.78602290e-01
-, 2.15935802e-01, 8.76573157e-03, -1.14739156e+00, 3.20733641e-03
-, 2.55343646e-01, 2.73449004e-01, 5.67882419e-01, 1.27276909e-02
-, 3.39412093e-01, 2.34864878e-02, 2.97155356e-01, 1.02349952e-01
-, 6.02937245e-01, -7.75046013e-03, 9.25932717e-01, -2.36998965e-02
-, 6.52715206e-01, 5.07276058e-01, 4.18485510e-01, -4.36994552e-02
-, -9.70201290e-01, 2.36761756e-03, 3.99560928e-01, 3.66962314e-01
-, 4.15035337e-01, 1.53226797e-02, -7.64197206e-01, 3.52483359e-03
-, 2.58797556e-01, 7.29496658e-01, 3.77655566e-01, 3.84847308e-03
-, 4.71212596e-01, 3.09121143e-03, 3.73755038e-01, 2.31737131e-01
-, 4.07214874e-01, 2.05342308e-02, 9.22544169e-01, -9.06175394e-02
-, 2.64522165e-01, 8.38151920e-01, 2.69116563e-01, -2.95563077e-02
-, 6.83066356e-01, 5.24725904e-02, 4.53665257e-01, 7.49211276e-01
-, 6.42830431e-01, -2.26928439e-02, 7.00747275e-01, -1.16934684e-02
-, 8.01157379e-01, 4.71069545e-01, 4.94137806e-01, 4.30046674e-03
-, 8.67477441e-01, 3.05538368e-03, 2.86306924e-01, 7.95031297e-01
-, 3.75466502e-01, -2.95855785e-02, 2.86042368e-01, 6.78240508e-03
-, 2.30966449e-01, 7.76091743e-01, 6.29519260e-01, 3.33183655e-03]
+	for batch in range(0, opti_batch_size):
+		opt_p, iters = hillclimb.maximize(opti_rp, rp.get_param_array(), precision=0.1, iteration_limit=10)
+		iter_count += iters
+		if iters < opti_batch_size:
+			zpickle(opt_p, 'opti-iter-%s.pickle.gz' % iter_count)
+			break
+		zpickle(opt_p, 'opti-iter-%s.pickle.gz' % iter_count)
 	print('...completed in %s iterations' % iter_count)
 	rp.set_param_array(opt_p)
 	print('new params:', rp.get_param_array())
@@ -232,12 +199,13 @@ def main():
 	print('normalizer.data_max_ =', normalizer.data_max_)
 	print('normalizer.data_range_ =', normalizer.data_range_)
 	print('normalizer.scale_ =', normalizer.scale_)
+	zpickle(rp_pipe, 'rp_pipe.pickle.gz')
 
 	# for dtree_size in range(2,10):
 	dtree_size = 6
 	# if RELOAD or not path.exists(dtree_zpickle):
 	dtree_pipe = Pipeline([
-		('normalize', MinMaxScaler()),
+		('normalize', my_scaler),
 		('decision_tree', DecisionTreeClassifier(max_depth=dtree_size))
 	])
 	print('fitting decision tree model with %s layers...' % dtree_size)
@@ -246,6 +214,7 @@ def main():
 		# pipe = zunpickle(dtree_zpickle)
 	fit_and_score(dtree_pipe, input_data=bfeatures, labels=blabels)
 
+	zpickle(dtree_pipe, 'dtree_pipe.pickle.gz')
 	#print(export_text(pipe['decision_tree'], max_depth=dtree_size))
 	# graphviz_export(
 	# 	pipe['decision_tree'], 'dtree', feature_names=features.columns,
