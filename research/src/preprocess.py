@@ -29,20 +29,25 @@ def main():
 	##
 	altitude = zunpickle(altitude_zpickle)
 	#altitude[altitude < 0] = nan
-	imshow(numpy.clip(altitude[::10,::10], -200, 3000), 'altitude', cmap='terrain')
+	imshow(altitude[::10,::10], 'altitude', cmap='terrain')
 	surface_temp_mean = zunpickle(surface_temp_mean_zpickle)
 	shadow = numpy.clip(altitude[::10,::10], -1, 1)
-	imshow(numpy.clip(surface_temp_mean[::10,::10], -50, 50), 'surface temperature', shadow_img=shadow)
+	test_pressure = pressure_at_altitude(101, 9.81, surface_temp_mean[::10,::10], numpy.clip(altitude[::10,::10],0,numpy.inf))
+	imshow(test_pressure, 'pressure (kPa)', shadow_img=shadow)
+	test_sol_flux = solar_flux_at_altitude(1373, 101,
+		9.81, surface_temp_mean[::10,::10], altitude[::10,::10], axis_tilt_deg=23, tidal_lock=False)
+	imshow(test_sol_flux, 'annual mean solar flux (W/m2)', shadow_img=shadow)
+	imshow(surface_temp_mean[::10,::10], 'surface temperature', shadow_img=shadow)
 	surface_temp_range = zunpickle(surface_temp_variation_zpickle)
 	imshow(surface_temp_range[::10, ::10], 'surface temp variation', shadow_img=shadow)
 	precip_mean = zunpickle(annual_precip_mean_zpickle)
 	imshow(precip_mean[::10, ::10], 'annual precipitation', shadow_img=shadow)
 	pyplot.hist(precip_mean.ravel(), bins=25, range=(0,5000)); pyplot.title('linear space precipitation'); pyplot.show()
-	imshow(numpy.log10(precip_mean[::10, ::10]), '(log10) annual precipitation', shadow_img=shadow)
+	imshow(numpy.log10(precip_mean[::10, ::10]), '(log10) annual precipitation', range=(-1,4), shadow_img=shadow)
 	pyplot.hist(numpy.log10(precip_mean.ravel()), bins=25, range=(-1,4)); pyplot.title('log10 space precipitation'); pyplot.show()
 	imshow(numpy.sqrt(precip_mean[::10, ::10]), 'sqrt annual precipitation', shadow_img=shadow)
 	pyplot.hist(numpy.sqrt(precip_mean.ravel()), bins=25, range=(0,100)); pyplot.title('sqrt space precipitation'); pyplot.show()
-	imshow(1.0/(precip_mean[::10, ::10]), 'inverse annual precipitation', shadow_img=shadow)
+	imshow(1.0/(precip_mean[::10, ::10]), 'inverse annual precipitation', range=(0,0.2), shadow_img=shadow)
 	pyplot.hist(1.0/(precip_mean.ravel()), bins=25, range=(0,0.2)); pyplot.title('inverse space precipitation'); pyplot.show()
 
 	print('Converting biomes...')
@@ -200,6 +205,16 @@ def main():
 	#
 	print('...Done!')
 
+def histogram(data: ndarray, range: (float,float)=None, bins=25, title=None):
+	data = numpy.asarray(data).astype(float32)
+	if range is None:
+		mean = numpy.nanmean(data)
+		sigma = numpy.nanstd(data)
+		range = (mean - 3*sigma, mean + 3*sigma)
+	pyplot.hist(data.ravel(), bins=bins, range=range)
+	if title is not None:
+		pyplot.title(title)
+	pyplot.show()
 
 def extract_features_and_labels(
 		biome_map: ndarray, # biome code map (labels)
@@ -279,12 +294,12 @@ def solar_flux_at_altitude(top_of_atmosphere_flux, sealevel_pressure_kPa,
 	### tidally locked: flux I = Imax * cos(lat) * clip[cos(lon), 0-1]
 	### rotating but without tilt: flux I = Imax * 2/pi * cos(lat)
 	### rotating but with tilt: flux I = Imax * 2/pi * 0.5 * (clip[cos(lat-tilt), 0-1] + clip[cos(lat+tilt), 0-1])
-	two_over_pi = 0.5 * numpy.pi
+	two_over_pi = 2 / numpy.pi
 	deg2Rad = numpy.pi / 180
 	epsilon_air = 3.46391e-5 # Absorption per kPa (1360 = 1371 * 10^(-eps * 101) )
 	epsilon_water = 0.013333  # Absorption per meter (150m == 1% transmission (0.01 = 10^(-epsilon*150))
 	underwater = numpy.ma.masked_array(numpy.zeros_like(altitude_m), mask=altitude_m >= 0) \
-		+ numpy.power(10, epsilon_water*altitude_m)
+		+ numpy.power(10, epsilon_water*altitude_m) # <- note: altitude is negative here
 	above_water = numpy.power(
 		10, -epsilon_air * pressure_at_altitude(sealevel_pressure_kPa, gravity_m_per_s2, mean_temp_C, altitude_m)
 	)
@@ -317,16 +332,20 @@ def zunpickle(filepath):
 	else:
 		raise FileNotFoundError("File '%s' does not exist" % path.abspath(filepath))
 
-def imshow(img: ndarray, title=None, cmap='gist_rainbow', shadow_img=None):
+def imshow(img: ndarray, title=None, range=None, cmap='gist_rainbow', shadow_img=None, hist=True):
+	if range is None:
+		range = (numpy.nanmin(img), numpy.nanmax(img))
 	if shadow_img is None:
-		pyplot.imshow(img, alpha=1, cmap=cmap)
+		pyplot.imshow(numpy.clip(img, range[0], range[1]), alpha=1, cmap=cmap)
 	else:
 		pyplot.imshow(shadow_img, alpha=1, cmap='gist_gray')
-		pyplot.imshow(img, alpha=0.5, cmap=cmap)
+		pyplot.imshow(numpy.clip(img, range[0], range[1]), alpha=0.5, cmap=cmap)
 	pyplot.gca().invert_yaxis()
 	if title is not None:
 		pyplot.title(title)
 	pyplot.show()
+	if hist:
+		histogram(img, range=range, title=title)
 
 def show_counts(df: DataFrame, colname):
 	cats = numpy.unique(df[colname])
