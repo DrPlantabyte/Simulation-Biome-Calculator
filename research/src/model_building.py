@@ -39,16 +39,15 @@ def main():
 		pi_over_2 = 0.5 * numpy.pi
 		src_data['solar_flux'] = src_data['solar_flux'] / pi_over_2 * two_over_pi
 	# remove unclassified rows
-	src_data: DataFrame = src_data[src_data['biome'] != 0]
-	# remove unclassified rows and reduce data size and remove oceans
-	dev_data = src_data[src_data['biome'] < 0x10].copy()
-	del src_data
+	src_data: DataFrame = src_data[src_data['biome'] != 0].copy()
 	# patch-in tundra
-	tmp_b = numpy.asarray(dev_data['biome'])
-	tmp_b[(dev_data['precipitation'] > 110) * (dev_data['temperature_mean'] < 5) \
-					  * (dev_data['temperature_mean'] + dev_data['temperature_range'] > 0)] = Biome.TUNDRA.value
-	dev_data['biome'] = tmp_b
+	tmp_b = numpy.asarray(src_data['biome'])
+	tmp_b[(src_data['precipitation'] > 110) * (src_data['temperature_mean'] < 5) \
+					  * (src_data['temperature_mean'] + src_data['temperature_range'] > 0)] = Biome.TUNDRA.value
+	src_data['biome'] = tmp_b
 	del tmp_b
+	# remove unclassified rows and reduce data size and remove oceans
+	dev_data = src_data[src_data['biome'] < 0x10]
 	print('columns: ', list(dev_data.columns))
 	labels = dev_data['biome']
 	features: DataFrame = dev_data.drop(['biome', 'gravity'], axis=1, inplace=False)
@@ -122,9 +121,14 @@ def main():
 		exit(1)
 	do_training = False
 	if not do_training:
+		import warnings # to silence the error message every time there are no predictions for a given class
+		warnings.filterwarnings('ignore')  # "error", "ignore", "always", "default", "module" or "once"
 		print('Fast classifier accuracy:')
-		fast_bc = FastBiomeClassifier(columns=features.columns, exoplanet=True)
+		fast_bc = FastBiomeClassifier(columns=bfeatures.columns, exoplanet=True)
 		fit_and_score(fast_bc, input_data=bfeatures, labels=blabels)
+		print('Fast classifier accuracy with whole earth:')
+		fast_bc = FastBiomeClassifier(columns=src_data.columns, exoplanet=True)
+		fit_and_score(fast_bc, input_data=src_data, labels=src_data['biome'])
 		print('Biome classifier accuracy:')
 		earth_bc = BiomeClassifier(columns=features.columns, exoplanet=False)
 		fit_and_score(earth_bc, input_data=features, labels=labels)

@@ -3,6 +3,50 @@ from libc.math cimport sin, cos, exp, log10, log, pow, sqrt
 import numpy
 from biome_enum import Biome
 
+# bits: 0yyyxxxx
+# yyy = biome category (0=terrestrial, 1=aquatic, 2=artificial, 4=astronomical, 7=fictional)
+# xxxx = biome code within category
+cdef unsigned char UNKNOWN = Biome.UNKNOWN.value
+## TERRESTRIAL BIOMES
+cdef unsigned char WETLAND = Biome.WETLAND.value
+cdef unsigned char JUNGLE = Biome.JUNGLE.value
+cdef unsigned char SEASONAL_FOREST = Biome.SEASONAL_FOREST.value
+cdef unsigned char NEEDLELEAF_FOREST = Biome.NEEDLELEAF_FOREST.value
+cdef unsigned char GRASSLAND = Biome.GRASSLAND.value
+cdef unsigned char DESERT_SHRUBLAND = Biome.DESERT_SHRUBLAND.value
+cdef unsigned char TUNDRA = Biome.TUNDRA.value
+## AQUATIC BIOMES
+cdef unsigned char FRESHWATER = Biome.FRESHWATER.value
+cdef unsigned char SEA_FOREST = Biome.SEA_FOREST.value
+cdef unsigned char TROPICAL_REEF = Biome.TROPICAL_REEF.value
+cdef unsigned char ROCKY_SHALLOWS = Biome.ROCKY_SHALLOWS.value
+cdef unsigned char DEEP_OCEAN = Biome.DEEP_OCEAN.value
+cdef unsigned char SHALLOW_OCEAN = Biome.SHALLOW_OCEAN.value
+## EXTREME/MICROBIOTIC BIOMES (terrestrial and aquatic)
+cdef unsigned char BARREN = Biome.BARREN.value
+cdef unsigned char SAND_SEA = Biome.SAND_SEA.value
+cdef unsigned char ICE_SHEET = Biome.ICE_SHEET.value
+cdef unsigned char BOILING_SEA = Biome.BOILING_SEA.value
+## ASTRONOMICAL BIOMES
+cdef unsigned char MOONSCAPE = Biome.MOONSCAPE.value
+cdef unsigned char MAGMA_SEA = Biome.MAGMA_SEA.value
+cdef unsigned char CRYOGEN_SEA = Biome.CRYOGEN_SEA.value
+cdef unsigned char GAS_GIANT = Biome.GAS_GIANT.value
+cdef unsigned char STAR = Biome.STAR.value
+cdef unsigned char NEUTRON_STAR = Biome.NEUTRON_STAR.value
+cdef unsigned char EVENT_HORIZON = Biome.EVENT_HORIZON.value
+## ARTIFICIAL BIOMES
+cdef unsigned char FARMLAND = Biome.FARMLAND.value
+cdef unsigned char URBAN = Biome.URBAN.value
+## SCIFI/FANTASY BIOMES
+cdef unsigned char RUINS = Biome.RUINS.value
+cdef unsigned char BIOLUMINESCENT = Biome.BIOLUMINESCENT.value
+cdef unsigned char DEAD = Biome.DEAD.value
+cdef unsigned char MAGIC_GARDEN = Biome.MAGIC_GARDEN.value
+cdef unsigned char ELEMENTAL_CHAOS = Biome.ELEMENTAL_CHAOS.value
+cdef unsigned char OOZE = Biome.OOZE.value
+
+
 cdef unsigned char[9] ref_classes = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 ## order of features: ['solar_flux', 'temperature_mean', 'temperature_range', 'sqrt_precipitation']
 cdef float[9][5][4] ref_points = [
@@ -72,7 +116,9 @@ cpdef unsigned char classify_biome(
 ):
     ## constants and variables
     cdef min_rain_limit_mm = 110
+    cdef max_rain_limit_mm = 6000 # too much rain and we'll call it a wetland instead of a jungle
     cdef float photic_zone_min_solar_flux_Wpm2 = 35
+    cdef float wave_disruption_depth_m = -6 # corals, seagrasses, kelps, etc cannot grow above this depth
     cdef float epsilon_water = 0.013333  # Absorption per meter (150m == 1% transmission (0.01 = 10^(-epsilon*150))
     cdef float benthic_solar_flux = mean_solar_flux_Wpm2 * pow(10, epsilon_water*altitude_m) # <- note: altitude is negative here
     cdef boiling_point_C = boiling_point(pressure_kPa)
@@ -83,50 +129,53 @@ cpdef unsigned char classify_biome(
     cdef float norm_precip
     cdef float closest_dist = 1e35 #
     cdef float d = 0
-    cdef unsigned char biome_code = Biome.UNKOWN.value
+    cdef unsigned char biome_code = UNKNOWN
     if altitude_m > 0:
-        ### rescale to normalize so that distance calcs aren't biased
-        norm_sol_flux = rescale(mean_solar_flux_Wpm2, 0.0, 800.)
-        norm_mtemp = rescale(mean_temp_C, -20., 50.)
-        norm_vtemp = rescale(temp_var_C, 0., 35.)
-        norm_precip = rescale(sqrt(annual_precip_mm), 0.0, 75.)
-        for bclass in range(9):
-            for refpt in range(5):
-                d = dist4f(
-                    ref_points[bclass][refpt][0], ref_points[bclass][refpt][1], ref_points[bclass][refpt][2], ref_points[bclass][refpt][3],
-                    norm_sol_flux, norm_mtemp, norm_vtemp, norm_precip
-                )
-                if d < closest_dist:
-                    closest_dist = d
-                    biome_code = ref_classes[bclass]
+        if annual_precip_mm > max_rain_limit_mm:
+            biome_code = WETLAND
+        else:
+            ### rescale to normalize so that distance calcs aren't biased
+            norm_sol_flux = rescale(mean_solar_flux_Wpm2, 0.0, 800.)
+            norm_mtemp = rescale(mean_temp_C, -20., 50.)
+            norm_vtemp = rescale(temp_var_C, 0., 35.)
+            norm_precip = rescale(sqrt(annual_precip_mm), 0.0, 75.)
+            for bclass in range(9):
+                for refpt in range(5):
+                    d = dist4f(
+                        ref_points[bclass][refpt][0], ref_points[bclass][refpt][1], ref_points[bclass][refpt][2], ref_points[bclass][refpt][3],
+                        norm_sol_flux, norm_mtemp, norm_vtemp, norm_precip
+                    )
+                    if d < closest_dist:
+                        closest_dist = d
+                        biome_code = ref_classes[bclass]
     ## marine biomes
     else:
         if benthic_solar_flux >= photic_zone_min_solar_flux_Wpm2:
             # sea floor in photic zone
-            if mean_temp_C > 5 and mean_temp_C < 20:
-                biome_code = Biome.SEA_FOREST.value
-            elif mean_temp_C >= 20 and mean_temp_C < 30:
-                biome_code = Biome.TROPICAL_REEF.value
+            if mean_temp_C > 5 and mean_temp_C < 20 and altitude_m < wave_disruption_depth_m:
+                biome_code = SEA_FOREST
+            elif mean_temp_C >= 20 and mean_temp_C < 30 and altitude_m < wave_disruption_depth_m:
+                biome_code = TROPICAL_REEF
             else:
-                biome_code = Biome.ROCKY_SHALLOWS.value
+                biome_code = ROCKY_SHALLOWS
         elif altitude_m > -200:
-            biome_code = Biome.SHALLOW_OCEAN.value
+            biome_code = SHALLOW_OCEAN
         else:
-            biome_code = Biome.DEEP_OCEAN.value
+            biome_code = DEEP_OCEAN
     ## extreme biomes
     if altitude_m > 0:
         if annual_precip_mm < min_rain_limit_mm:
             if mean_temp_C > 15:
-                biome_code = Biome.SAND_SEA.value
+                biome_code = SAND_SEA
             elif mean_temp_C <= 15:
-                biome_code = Biome.BARREN.value
+                biome_code = BARREN
         if mean_temp_C >= boiling_point_C:
-            biome_code = Biome.MOONSCAPE.value
+            biome_code = MOONSCAPE
     else:
         if mean_temp_C > boiling_point_C:
-            biome_code = Biome.BOILING_SEA.value
+            biome_code = BOILING_SEA
     if (mean_temp_C < boiling_point_C) and (mean_temp_C + temp_var_C) < 0:
-        biome_code = Biome.ICE_SHEET.value
+        biome_code = ICE_SHEET
     ## Done!
     return biome_code
 
@@ -175,13 +224,13 @@ cpdef unsigned char classify_biome_on_planet(
     if exoplanet: ## try to detect extreme conditions of a non-goldilocks-zone planet
         if planet_density_Tpm3 > max_neutron_star_density_Tpm3:
             ## BLACK HOLE!
-            return Biome.EVENT_HORIZON.value
+            return EVENT_HORIZON
         if planet_density_Tpm3 >= min_neutron_star_density_Tpm3:
             ## neutron star!
-            return Biome.NEUTRON_STAR.value
+            return NEUTRON_STAR
         if planet_mass_kg >= red_dwarf_min_mass_kg:
             ## big enough to spontaneously start thermonuclear fusion and become a star
-            return Biome.STAR.value
+            return STAR
     return classify_biome_on_planet_surface(
         gravity_m_per_s2,
         mean_surface_pressure_kPa,
@@ -222,25 +271,25 @@ cpdef unsigned char classify_biome_on_planet_surface(
     if exoplanet: ## try to detect extreme conditions of a non-goldilocks-zone planet
         if mean_temp_C > quartz_boiling_boint_C:
             ## at least as hot as a red dwarf XD
-            return Biome.STAR.value
+            return STAR
         if pressure_kPa > water_supercritical_pressure:
             ### defining a gas giant is a bit hand-wavey as of 2022
-            return Biome.GAS_GIANT.value
+            return GAS_GIANT
         if pressure_kPa < ice_vapor_pressure_kPa:
             ### not enough atmosphere to be anything other than a naked rock!
-            return Biome.MOONSCAPE.value
+            return MOONSCAPE
         if mean_temp_C > pyroxene_melting_point_C:
             if altitude_m <= 0:
-                return Biome.MAGMA_SEA.value
+                return MAGMA_SEA
             else:
-                return Biome.MOONSCAPE.value
+                return MOONSCAPE
         if (mean_temp_C > cryo_triple_temp) and (mean_temp_C < cryo_crit_temp) and \
                 (pressure_kPa < cryo_crit_pressure) and ( pressure_kPa > (1.6298e9*exp(0.08898*mean_temp_C))):
             ## liquid nitrogen planet! (like pluto)
             if altitude_m <= 0:
-                return Biome.CRYOGEN_SEA.value
+                return CRYOGEN_SEA
             else:
-                return Biome.ICE_SHEET.value
+                return ICE_SHEET
     ## then check normal biomes
     return classify_biome(
         mean_solar_flux_Wpm2,
