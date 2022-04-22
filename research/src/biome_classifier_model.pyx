@@ -289,7 +289,7 @@ cdef float dist4f(float a1, float b1, float c1, float d1, float a2, float b2, fl
     return sqrt(da*da + db*db + dc*dc + dd*dd)
 
 
-def classify_planet_biomes(
+cpdef classify_planet_biomes(
     float gravity_m_per_s2,
     float mean_surface_pressure_kPa,
     float[:] mean_solar_flux_Wpm2,

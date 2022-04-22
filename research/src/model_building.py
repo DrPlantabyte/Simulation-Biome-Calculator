@@ -20,6 +20,12 @@ from biome_enum import Biome
 from photophysiology import *
 import hillclimb
 
+import pyximport
+pyximport.install()
+from biome_classifier_model import classify_planet_biomes
+test_b = classify_planet_biomes(10,101,numpy.asarray([600], dtype=float32),numpy.asarray([10], dtype=float32),numpy.asarray([20], dtype=float32),numpy.asarray([20], dtype=float32),numpy.asarray([210], dtype=float32), True)
+print('cython import test', test_b)
+
 def main():
 	# RELOAD = True
 	PATCH_SOLAR_FLUX = True
@@ -114,8 +120,11 @@ def main():
 				x_range=(-20,50), x_grids=35, y_range=(0,1), y_grids=20
 			)
 		exit(1)
-	do_training = True
+	do_training = False
 	if not do_training:
+		print('Fast classifier accuracy:')
+		fast_bc = FastBiomeClassifier(columns=features.columns, exoplanet=True)
+		fit_and_score(fast_bc, input_data=bfeatures, labels=blabels)
 		print('Biome classifier accuracy:')
 		earth_bc = BiomeClassifier(columns=features.columns, exoplanet=False)
 		fit_and_score(earth_bc, input_data=features, labels=labels)
@@ -281,6 +290,70 @@ terrestrial_data_normalizer_minmaxes = DataFrame(numpy.asarray([
 ], dtype=float32),
 	columns=['solar_flux', 'pressure', 'altitude', 'temperature_mean', 'temperature_range', 'precipitation']
 )
+
+class FastBiomeClassifier(BaseEstimator, TransformerMixin, ClassifierMixin):
+
+	def __init__(self, columns, gravity_m_per_s2=9.81, mean_surface_pressure_kPa=101.3, exoplanet=False):
+		self.gravity_m_per_s2 = gravity_m_per_s2
+		self.mean_surface_pressure_kPa = mean_surface_pressure_kPa
+		self.exoplanet = exoplanet
+		self.columns = list(columns)
+		for req in ['temperature_mean', 'temperature_range', 'precipitation', 'altitude', 'solar_flux']:
+			if req not in self.columns:
+				raise ValueError('Missing required data column %s' % req)
+		self.index_mean_temp = self.columns.index('temperature_mean')
+		self.index_temp_var = self.columns.index('temperature_range')
+		self.index_precip = self.columns.index('precipitation')
+		self.index_altitude = self.columns.index('altitude')
+		self.index_solar_flux = self.columns.index('solar_flux')
+
+	def classify_biomes(
+			self,
+			mean_solar_flux_Wpm2: ndarray,
+			altitude_m: ndarray,
+			mean_temp_C: ndarray,
+			temp_var_C: ndarray,
+			annual_precip_mm: ndarray,
+	) -> ndarray:
+		return classify_planet_biomes(
+			self.gravity_m_per_s2,
+			self.mean_surface_pressure_kPa,
+			mean_solar_flux_Wpm2,
+			altitude_m,
+			mean_temp_C,
+			temp_var_C,
+			annual_precip_mm,
+			self.exoplanet
+		)
+
+
+	def fit(self, X, y):
+		# Check that X and y have correct shape
+		X: ndarray = numpy.asarray(X)
+		y: ndarray = numpy.asarray(y)
+		X, y = check_X_y(X, y)
+		# Store the classes seen during fit
+		self.classes_ = unique_labels(y)
+		self.feature_count_ = len(X[0])
+		## no fitting operation
+		# Return the classifier
+		return self
+
+	def predict(self, X):
+		# Check is fit had been called
+		check_is_fitted(self)
+
+		# Input validation
+		X = check_array(X)
+		X = numpy.asarray(X, dtype=float32)
+
+		return self.classify_biomes(
+			altitude_m=X[:, self.index_altitude],
+			mean_temp_C=X[:, self.index_mean_temp],
+			temp_var_C=X[:, self.index_temp_var],
+			annual_precip_mm=X[:, self.index_precip],
+			mean_solar_flux_Wpm2=X[:, self.index_solar_flux]
+		)
 
 terrestrial_reference_classes = numpy.asarray([1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=uint8)
 terrestrial_reference_points = numpy.asarray([
