@@ -1,5 +1,6 @@
 import cython
 from libc.math cimport sin, cos, exp, log10, log, pow, sqrt
+import numpy
 from biome_enum import Biome
 
 cdef unsigned char[9] ref_classes = [1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -154,11 +155,8 @@ cpdef unsigned char classify_biome_on_planet(
     cdef above_sealevel_m = altitude_m
     if above_sealevel_m < 0:
         above_sealevel_m = 0
-    cdef float K = mean_temp_C + 273.15
-    cdef float R = 8.314510  # j/K/mole
-    cdef float air_molar_mass = 0.02897  # kg/mol
+    cdef float pressure_kPa = pressure_at_altitude(gravity_m_per_s2, mean_surface_pressure_kPa, mean_temp_C, above_sealevel_m)
     cdef float epsilon_air = 3.46391e-5 # Absorption per kPa (1360 = 1371 * 10^(-eps * 101) )
-    cdef float pressure_kPa = mean_surface_pressure_kPa * exp(-(air_molar_mass * gravity_m_per_s2 * above_sealevel_m)/(R*K))
     cdef max_flux = toa_solar_flux_Wpm2 * pow(10, -epsilon_air * pressure_kPa)
     cdef float mean_solar_flux_Wpm2 = 0
     if tidal_lock:
@@ -169,22 +167,11 @@ cpdef unsigned char classify_biome_on_planet(
                 + clip(cos(deg2Rad * (latitude + axis_tilt_deg)), 0, 1)
         )
     ## if doing expoplanet calcualtion, first check astronomical biomes
-    cdef float water_supercritical_pressure = 22000 # kPa
-    cdef float pyroxene_melting_point_C = 1000
-    cdef float quartz_boiing_boint_C = 2230
-    ### cryogen params based on liquid nitrogen ( https://www.engineeringtoolbox.com/nitrogen-d_1421.html )
-    #### alternative cryogens: ammonia, methane; both would oxidize in presense of oxygen, so not as interesting
-    #### (oxygen is a pretty common element)
-    cdef float cryo_crit_temp = -147 # C
-    cdef float cryo_crit_pressure = 3400 # kPa
-    cdef float cryo_triple_temp = -210 # C
-    # cdef float cryo_triple_pressure = 12.5 # kPa
     cdef float min_neutron_star_density_Tpm3 = 1e14# tons per cubic meter (aka g/cc)
     cdef float max_neutron_star_density_Tpm3 = 2e16 # tons per cubic meter (aka g/cc)
     cdef float planet_volume_m3 = 4.0/3.0*pi*radius_m*radius_m*radius_m
     cdef float planet_density_Tpm3 = planet_mass_kg / 1000. / planet_volume_m3
     cdef float red_dwarf_min_mass_kg = 1.2819e29
-    cdef float ice_vapor_pressure_kPa = 0.67085*exp(0.0963822*mean_temp_C) # if less pressure than this, then no ice
     if exoplanet: ## try to detect extreme conditions of a non-goldilocks-zone planet
         if planet_density_Tpm3 > max_neutron_star_density_Tpm3:
             ## BLACK HOLE!
@@ -195,7 +182,45 @@ cpdef unsigned char classify_biome_on_planet(
         if planet_mass_kg >= red_dwarf_min_mass_kg:
             ## big enough to spontaneously start thermonuclear fusion and become a star
             return Biome.STAR.value
-        if mean_temp_C > quartz_boiing_boint_C:
+    return classify_biome_on_planet_surface(
+        gravity_m_per_s2,
+        mean_surface_pressure_kPa,
+        mean_solar_flux_Wpm2,
+        altitude_m,
+        mean_temp_C,
+        temp_var_C,
+        annual_precip_mm,
+        exoplanet
+    )
+
+
+cpdef unsigned char classify_biome_on_planet_surface(
+    float gravity_m_per_s2,
+    float mean_surface_pressure_kPa,
+    float mean_solar_flux_Wpm2,
+    float altitude_m,
+    float mean_temp_C,
+    float temp_var_C,
+    float annual_precip_mm,
+    bint exoplanet
+):
+    cdef float water_supercritical_pressure = 22000 # kPa
+    cdef float pyroxene_melting_point_C = 1000
+    cdef float quartz_boiling_boint_C = 2230
+    ### cryogen params based on liquid nitrogen ( https://www.engineeringtoolbox.com/nitrogen-d_1421.html )
+    #### alternative cryogens: ammonia, methane; both would oxidize in presense of oxygen, so not as interesting
+    #### (oxygen is a pretty common element)
+    cdef float cryo_crit_temp = -147 # C
+    cdef float cryo_crit_pressure = 3400 # kPa
+    cdef float cryo_triple_temp = -210 # C
+    # cdef float cryo_triple_pressure = 12.5 # kPa
+    cdef float ice_vapor_pressure_kPa = 0.67085*exp(0.0963822*mean_temp_C) # if less pressure than this, then no ice
+    cdef above_sealevel_m = altitude_m
+    if above_sealevel_m < 0:
+        above_sealevel_m = 0
+    cdef float pressure_kPa = pressure_at_altitude(gravity_m_per_s2, mean_surface_pressure_kPa, mean_temp_C, above_sealevel_m)
+    if exoplanet: ## try to detect extreme conditions of a non-goldilocks-zone planet
+        if mean_temp_C > quartz_boiling_boint_C:
             ## at least as hot as a red dwarf XD
             return Biome.STAR.value
         if pressure_kPa > water_supercritical_pressure:
@@ -226,6 +251,7 @@ cpdef unsigned char classify_biome_on_planet(
         annual_precip_mm
     )
 
+
 cdef float boiling_point(float pressure_kPa):
     cdef float ln_mbar = log(pressure_kPa*10)
     cdef float x = ln_mbar
@@ -237,6 +263,13 @@ cdef float boiling_point(float pressure_kPa):
         return lp
     else:
         return hp
+
+cpdef float pressure_at_altitude(float gravity_m_per_s2, float mean_surface_pressure_kPa, float mean_temp_C, float above_sealevel_m):
+    cdef float K = mean_temp_C + 273.15
+    cdef float R = 8.314510  # j/K/mole
+    cdef float air_molar_mass = 0.02897  # kg/mol
+    cdef float pressure_kPa = mean_surface_pressure_kPa * exp(-(air_molar_mass * gravity_m_per_s2 * above_sealevel_m)/(R*K))
+    return pressure_kPa
 
 cpdef float clip(float x, float xmin, float xmax):
     if x < xmin:
@@ -255,3 +288,37 @@ cdef float dist4f(float a1, float b1, float c1, float d1, float a2, float b2, fl
     cdef float dd = d2-d1
     return sqrt(da*da + db*db + dc*dc + dd*dd)
 
+
+def classify_planet_biomes(
+    float gravity_m_per_s2,
+    float mean_surface_pressure_kPa,
+    float[:] mean_solar_flux_Wpm2,
+    float[:] altitude_m,
+    float[:] mean_temp_C,
+    float[:] temp_var_C,
+    float[:] annual_precip_mm,
+    bint exoplanet,
+):
+    # for use with Numpy arrays
+    assert tuple(mean_solar_flux_Wpm2.shape) == tuple(altitude_m.shape)
+    assert tuple(mean_temp_C.shape) == tuple(altitude_m.shape)
+    assert tuple(temp_var_C.shape) == tuple(altitude_m.shape)
+    assert tuple(annual_precip_mm.shape) == tuple(altitude_m.shape)
+    #
+    array_size = altitude_m.shape[0]
+    result = numpy.zeros((array_size, ), dtype=numpy.uint8)
+    #
+    cdef unsigned char[:] result_view = result
+    cdef Py_ssize_t i # define index as native type
+    for i in range(array_size):
+        result_view[i] = classify_biome_on_planet_surface(
+            gravity_m_per_s2,
+            mean_surface_pressure_kPa,
+            mean_solar_flux_Wpm2[i],
+            altitude_m[i],
+            mean_temp_C[i],
+            temp_var_C[i],
+            annual_precip_mm[i],
+            exoplanet
+        )
+    return result
