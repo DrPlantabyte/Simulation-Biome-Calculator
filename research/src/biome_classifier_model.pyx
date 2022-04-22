@@ -2,7 +2,7 @@ import cython
 from libc.math cimport sin, cos, exp, log10, log, pow, sqrt
 from biome_enum import Biome
 
-cdef unsigned char ref_classes = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+cdef unsigned char[9] ref_classes = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 ## order of features: ['solar_flux', 'temperature_mean', 'temperature_range', 'sqrt_precipitation']
 cdef float[9][5][4] ref_points = [
 ## wetlands
@@ -82,7 +82,7 @@ cpdef unsigned char classify_biome(
     cdef float norm_precip
     cdef float closest_dist = 1e35 #
     cdef float d = 0
-    cdef float biome_code = Biome.UNKOWN.value
+    cdef unsigned char biome_code = Biome.UNKOWN.value
     if altitude_m > 0:
         ### rescale to normalize so that distance calcs aren't biased
         norm_sol_flux = rescale(mean_solar_flux_Wpm2, 0.0, 800.)
@@ -92,7 +92,7 @@ cpdef unsigned char classify_biome(
         for bclass in range(9):
             for refpt in range(5):
                 d = dist4f(
-                    ref_points[i][refpt][0], ref_points[i][refpt][1], ref_points[i][refpt][2], ref_points[i][refpt][3],
+                    ref_points[bclass][refpt][0], ref_points[bclass][refpt][1], ref_points[bclass][refpt][2], ref_points[bclass][refpt][3],
                     norm_sol_flux, norm_mtemp, norm_vtemp, norm_precip
                 )
                 if d < closest_dist:
@@ -126,8 +126,6 @@ cpdef unsigned char classify_biome(
             biome_code = Biome.BOILING_SEA.value
     if (mean_temp_C < boiling_point_C) and (mean_temp_C + temp_var_C) < 0:
         biome_code = Biome.ICE_SHEET.value
-    ## astronomical biomes
-    # TODO
     ## Done!
     return biome_code
 
@@ -143,7 +141,8 @@ cpdef unsigned char classify_biome_on_planet(
     float temp_var_C,
     float annual_precip_mm,
     float latitude,
-    float longitude
+    float longitude,
+    bint exoplanet,
 ):
     cdef float pi = 3.14159265358979
     cdef float two_over_pi = 0.5 * pi
@@ -169,6 +168,55 @@ cpdef unsigned char classify_biome_on_planet(
                 clip(cos(deg2Rad * (latitude - axis_tilt_deg)), 0, 1)
                 + clip(cos(deg2Rad * (latitude + axis_tilt_deg)), 0, 1)
         )
+    ## if doing expoplanet calcualtion, first check astronomical biomes
+    cdef float water_supercritical_pressure = 22000 # kPa
+    cdef float pyroxene_melting_point_C = 1000
+    cdef float quartz_boiing_boint_C = 2230
+    ### cryogen params based on liquid nitrogen ( https://www.engineeringtoolbox.com/nitrogen-d_1421.html )
+    #### alternative cryogens: ammonia, methane; both would oxidize in presense of oxygen, so not as interesting
+    #### (oxygen is a pretty common element)
+    cdef float cryo_crit_temp = -147 # C
+    cdef float cryo_crit_pressure = 3400 # kPa
+    cdef float cryo_triple_temp = -210 # C
+    # cdef float cryo_triple_pressure = 12.5 # kPa
+    cdef float min_neutron_star_density_Tpm3 = 1e14# tons per cubic meter (aka g/cc)
+    cdef float max_neutron_star_density_Tpm3 = 2e16 # tons per cubic meter (aka g/cc)
+    cdef float planet_volume_m3 = 4.0/3.0*pi*radius_m*radius_m*radius_m
+    cdef float planet_density_Tpm3 = planet_mass_kg / 1000. / planet_volume_m3
+    cdef float red_dwarf_min_mass_kg = 1.2819e29
+    cdef float ice_vapor_pressure_kPa = 0.67085*exp(0.0963822*mean_temp_C) # if less pressure than this, then no ice
+    if exoplanet: ## try to detect extreme conditions of a non-goldilocks-zone planet
+        if planet_density_Tpm3 > max_neutron_star_density_Tpm3:
+            ## BLACK HOLE!
+            return Biome.EVENT_HORIZON.value
+        if planet_density_Tpm3 >= min_neutron_star_density_Tpm3:
+            ## neutron star!
+            return Biome.NEUTRON_STAR.value
+        if planet_mass_kg >= red_dwarf_min_mass_kg:
+            ## big enough to spontaneously start thermonuclear fusion and become a star
+            return Biome.STAR.value
+        if mean_temp_C > quartz_boiing_boint_C:
+            ## at least as hot as a red dwarf XD
+            return Biome.STAR.value
+        if pressure_kPa > water_supercritical_pressure:
+            ### defining a gas giant is a bit hand-wavey as of 2022
+            return Biome.GAS_GIANT.value
+        if pressure_kPa < ice_vapor_pressure_kPa:
+            ### not enough atmosphere to be anything other than a naked rock!
+            return Biome.MOONSCAPE.value
+        if mean_temp_C > pyroxene_melting_point_C:
+            if altitude_m <= 0:
+                return Biome.MAGMA_SEA.value
+            else:
+                return Biome.MOONSCAPE.value
+        if (mean_temp_C > cryo_triple_temp) and (mean_temp_C < cryo_crit_temp) and \
+                (pressure_kPa < cryo_crit_pressure) and ( pressure_kPa > (1.6298e9*exp(0.08898*mean_temp_C))):
+            ## liquid nitrogen planet! (like pluto)
+            if altitude_m <= 0:
+                return Biome.CRYOGEN_SEA.value
+            else:
+                return Biome.ICE_SHEET.value
+    ## then check normal biomes
     return classify_biome(
         mean_solar_flux_Wpm2,
         pressure_kPa,
@@ -179,16 +227,16 @@ cpdef unsigned char classify_biome_on_planet(
     )
 
 cdef float boiling_point(float pressure_kPa):
-	cdef float ln_mbar = log(pressure_kPa*10)
-	cdef float x = ln_mbar
-	cdef float x2 = x*ln_mbar
-	cdef float x3 = x2*ln_mbar
-	cdef float lp = 0.051769*x3 + 0.65545*x2 + 10.387*x - 10.619
-	cdef float hp = 0.47092*x3 - 8.2481*x2 + 75.520*x - 183.98
-	if pressure_kPa < 101.3:
-	    return lp
-	else:
-	    return hp
+    cdef float ln_mbar = log(pressure_kPa*10)
+    cdef float x = ln_mbar
+    cdef float x2 = x*ln_mbar
+    cdef float x3 = x2*ln_mbar
+    cdef float lp = 0.051769*x3 + 0.65545*x2 + 10.387*x - 10.619
+    cdef float hp = 0.47092*x3 - 8.2481*x2 + 75.520*x - 183.98
+    if pressure_kPa < 101.3:
+        return lp
+    else:
+        return hp
 
 cpdef float clip(float x, float xmin, float xmax):
     if x < xmin:
@@ -206,3 +254,4 @@ cdef float dist4f(float a1, float b1, float c1, float d1, float a2, float b2, fl
     cdef float dc = c2-c1
     cdef float dd = d2-d1
     return sqrt(da*da + db*db + dc*dc + dd*dd)
+
