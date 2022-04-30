@@ -20,6 +20,7 @@ def main():
 	fao_lccs1_zpickle = path.join(data_dir, 'MCQ12Q1_1852m_fao-lccs.pickle.gz')
 	fao_hydro_zpickle = path.join(data_dir, 'MCQ12Q1_1852m_fao-hydrology.pickle.gz')
 	altitude_zpickle = path.join(data_dir, 'altitude_1852m_singrid.pickle.gz')
+	mean_solar_flux_zpickle = path.join(data_dir, 'solar_flux_1852m_singrid.pickle.gz')
 	surface_temp_mean_zpickle = path.join(data_dir, 'surf_temp_mean_1852m_singrid.pickle.gz')
 	surface_temp_variation_zpickle = path.join(data_dir, 'surf_temp_var_1852m_singrid.pickle.gz')
 	annual_precip_mean_zpickle = path.join(data_dir, 'precip_mean_1852m_singrid.pickle.gz')
@@ -34,8 +35,18 @@ def main():
 	shadow = numpy.clip(altitude[::10,::10], -1, 1)
 	test_pressure = pressure_at_altitude(101, 9.81, surface_temp_mean[::10,::10], numpy.clip(altitude[::10,::10],0,numpy.inf))
 	imshow(test_pressure, 'pressure (kPa)', shadow_img=shadow)
-	test_sol_flux = solar_flux_at_altitude(1373, 101,
-		9.81, surface_temp_mean[::10,::10], altitude[::10,::10], axis_tilt_deg=23, tidal_lock=False)
+	if not path.exists(mean_solar_flux_zpickle):
+		mean_solar_flux = solar_flux_at_altitude(
+			top_of_atmosphere_flux=1373, sealevel_pressure_kPa=101.3,
+			gravity_m_per_s2=9.81, mean_temp_C=surface_temp_mean,
+			altitude_m=numpy.clip(altitude, 0, numpy.inf), axis_tilt_deg=23, tidal_lock = False
+		)
+		zpickle(mean_solar_flux, mean_solar_flux_zpickle)
+	else:
+		mean_solar_flux = zunpickle(mean_solar_flux_zpickle)
+	# test_sol_flux = solar_flux_at_altitude(1373, 101,
+	# 	9.81, surface_temp_mean[::10,::10], altitude[::10,::10], axis_tilt_deg=23, tidal_lock=False)
+	test_sol_flux = mean_solar_flux[::10, ::10]
 	imshow(test_sol_flux, 'annual mean solar flux (W/m2)', shadow_img=shadow)
 	imshow(surface_temp_mean[::10,::10], 'surface temperature', shadow_img=shadow)
 	surface_temp_range = zunpickle(surface_temp_variation_zpickle)
