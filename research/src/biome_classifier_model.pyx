@@ -148,6 +148,9 @@ cpdef unsigned char classify_biome(
                     if d < closest_dist:
                         closest_dist = d
                         biome_code = ref_classes[bclass]
+        if biome_code == JUNGLE and temp_var_C > 6.0:
+            # too much variation for jungle, actually grassland
+            biome_code = GRASSLAND
     ## marine biomes
     else:
         if benthic_solar_flux >= photic_zone_min_solar_flux_Wpm2:
@@ -253,6 +256,8 @@ cpdef unsigned char classify_biome_on_planet_surface(
     float annual_precip_mm,
     bint exoplanet
 ):
+    if isnan(gravity_m_per_s2 + mean_surface_pressure_kPa + mean_solar_flux_Wpm2 + altitude_m + mean_temp_C + temp_var_C + annual_precip_mm):
+        return UNKNOWN
     cdef float water_supercritical_pressure = 22000 # kPa
     cdef float pyroxene_melting_point_C = 1000
     cdef float quartz_boiling_boint_C = 2230
@@ -371,3 +376,6 @@ cpdef classify_planet_biomes(
             exoplanet
         )
     return result
+
+cdef extern from "math.h":
+    bint isnan(float x)

@@ -13,7 +13,7 @@ def main():
 	PATCH_SOLAR_FLUX = False
 	##
 	data_dir = 'data'
-	subsamp = 10
+	subsamp = 4
 	##
 	gravity_m_per_s2 = 9.81
 	mean_surface_pressure_kPa = 101.3
@@ -31,6 +31,21 @@ def main():
 		pi_over_2 = 0.5 * numpy.pi
 		mean_solar_flux_Wpm2 = mean_solar_flux_Wpm2 / pi_over_2 * two_over_pi
 	##
+	pyplot.figure(1)
+	pyplot.subplot(321)
+	imshow(original_biomes, title="Biomes", range=[0,0x44])
+	pyplot.subplot(322)
+	imshow(altitude_m, title="Altitude (m)")
+	pyplot.subplot(323)
+	imshow(mean_solar_flux_Wpm2, title="Mean Solar Flux (W/m2)")
+	pyplot.subplot(324)
+	imshow(mean_temp_C, title="Mean Temperature (C)")
+	pyplot.subplot(325)
+	imshow(temp_var_C, title="Temperature Variation (C)")
+	pyplot.subplot(326)
+	imshow(annual_precip_mm, title="Annual Precipitation (mm)")
+	pyplot.show()
+	##
 	_shape = original_biomes.shape
 	calculated_biomes = classify_planet_biomes(
 		gravity_m_per_s2, #float gravity_m_per_s2,
@@ -42,15 +57,30 @@ def main():
 		annual_precip_mm.reshape((-1,)), #float[:] annual_precip_mm,
 		exoplanet #bint exoplanet,
 	).reshape(_shape)
-	delta = (calculated_biomes.astype(float32) - original_biomes.astype(float32))
+	diff_mask = calculated_biomes != original_biomes
+	#delta = (calculated_biomes.astype(float32) - original_biomes.astype(float32))
+	original_biomes[0][0] = 0x44; calculated_biomes[0][0] = 0x44; # just to make the images use same scale
+	delta = numpy.zeros_like(original_biomes).astype(float32)
+	delta[diff_mask] = 1.0
 	delta[delta == 0] = nan
 	pyplot.figure(1)
-	pyplot.subplot(211)
-	imshow(original_biomes, title="Original Biomes")
-	pyplot.subplot(212)
-	imshow(calculated_biomes, title="Calculated Biomes")
-	pyplot.subplot(213)
+	pyplot.subplot(231)
+	imshow(original_biomes, title="Original Biomes", cmap='prism')
+	pyplot.subplot(232)
+	imshow(calculated_biomes, title="Calculated Biomes", cmap='prism')
+	pyplot.subplot(233)
 	imshow(delta, title="Difference")
+	pyplot.subplot(234)
+	percent_diff = 100 * numpy.nansum(delta) / numpy.nansum(numpy.clip(original_biomes, 0, 1))
+	print('% different: ', percent_diff)
+	# pyplot.bar(x=[0], height=[percent_diff])
+	# pyplot.title("% Different")
+	imshow(temp_var_C, title="Temperature Variation (C)")
+	pyplot.subplot(235)
+	imshow(mean_temp_C, title="Mean Temperature (C)")
+	pyplot.subplot(236)
+	imshow(numpy.log10(annual_precip_mm), title="Annual Precipitation (log10(mm))")
+	pyplot.tight_layout()
 	pyplot.show()
 
 
