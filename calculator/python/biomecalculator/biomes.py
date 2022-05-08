@@ -48,7 +48,7 @@ class Biome(Enum):
 
 
 # see paged 7-14 of https://lpdaac.usgs.gov/documents/101/MCD12_User_Guide_V6.pdf
-def from_IGBP_cover_type(cover_type: int) -> Biome:
+def Biome_from_IGBP_cover_type(cover_type: int) -> Biome:
 	if cover_type   == 1: return Biome.NEEDLELEAF_FOREST # Use FAO for tundra
 	elif cover_type == 2: return Biome.JUNGLE
 	elif cover_type == 3: return Biome.SEASONAL_FOREST
@@ -67,43 +67,3 @@ def from_IGBP_cover_type(cover_type: int) -> Biome:
 	elif cover_type == 16: return Biome.SAND_SEA # could be barren, but 90+% is sand sea
 	elif cover_type == 17: return Biome.FRESHWATER # code 17 is usually ocean, but IGBP is meant for terrestrial analysis only, so if altitude is above sealevel, then it's freshwater
 	else: return Biome.UNKNOWN
-
-
-import classifier_python
-def classify_biome(
-    mean_solar_flux_Wpm2,
-    pressure_kPa,
-    altitude_m,
-    mean_temp_C,
-    temp_var_C,
-    annual_precip_mm
-) -> Biome:
-	return classifier_python.classify_biome(
-		mean_solar_flux_Wpm2,
-		pressure_kPa,
-		altitude_m,
-		mean_temp_C,
-		temp_var_C,
-		annual_precip_mm
-	)
-try:
-	import classifier_cython
-	def _classify_biome(
-			mean_solar_flux_Wpm2,
-			pressure_kPa,
-			altitude_m,
-			mean_temp_C,
-			temp_var_C,
-			annual_precip_mm
-	) -> Biome:
-		return Biome(classifier_cython.classify_biome(
-			mean_solar_flux_Wpm2,
-			pressure_kPa,
-			altitude_m,
-			mean_temp_C,
-			temp_var_C,
-			annual_precip_mm
-		))
-except Exception as ex:
-	print(ex, file=sys.stderr)
-	print('WARNING: Failed to import Cython optimized bindings, using pure Python implementation instead. Performance may by suffer.', file=sys.stderr)

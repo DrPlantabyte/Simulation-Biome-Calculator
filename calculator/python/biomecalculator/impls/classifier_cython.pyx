@@ -1,7 +1,7 @@
 import cython
 from libc.math cimport sin, cos, exp, log10, log, pow, sqrt
 import numpy
-from . import Biome
+from ..biomes import Biome
 
 # bits: 0yyyxxxx
 # yyy = biome category (0=terrestrial, 1=aquatic, 2=artificial, 4=astronomical, 7=fictional)
@@ -115,13 +115,13 @@ cpdef unsigned char classify_biome(
     float annual_precip_mm
 ):
     """
-This function estimates the biome code for a given set of climate parameters
+This function estimates the biome code for a given set of climate parameters, only considering earthly biomes.
 
 Parameters:
     mean_solar_flux_Wpm2 (float) - annual mean solar flux, in watts per square meter
     pressure_kPa (float) - atmospheric pressure at the surface (use sea-level pressure for underwater classification),
                            in kPa
-    altitude_m (float) - altitude above (or below) sea-level, in meters
+    altitude_m (float) - altitude above (or below, if negative) sea-level, in meters
     mean_temp_C (float) - annual mean temperature, in degrees C
     temp_var_C (float) - the +/- range of the temperature throughout the year (1.5 standard deviations), in degrees C
     annual_precip_mm (float) - the annual mean precipitation, in mm rainfall (10 mm snowfall = 1 mm rainfall)
@@ -176,7 +176,7 @@ Biome Code Reference:
     cdef float wave_disruption_depth_m = -6 # corals, seagrasses, kelps, etc cannot grow above this depth
     cdef float epsilon_water = 0.013333  # Absorption per meter (150m == 1% transmission (0.01 = 10^(-epsilon*150))
     cdef float benthic_solar_flux = mean_solar_flux_Wpm2 * pow(10, epsilon_water*altitude_m) # <- note: altitude is negative here
-    cdef boiling_point_C = boiling_point(pressure_kPa)
+    cdef float boiling_point_C = boiling_point(pressure_kPa)
     ## terrestrial biomes
     cdef float norm_sol_flux
     cdef float norm_mtemp
@@ -252,6 +252,72 @@ cpdef unsigned char classify_biome_on_planet(
     float longitude,
     bint exoplanet,
 ):
+    """
+This function estimates the biome code for a given set of planetary and climate parameters, with input parameters that
+are more convenient for exoplanet simulations
+
+Parameters:
+    planet_mass_kg (float) - mass of the planet, in kg
+    planet_mean_radius_km (float) - radius of the planet, in km
+    toa_solar_flux_Wpm2 (float) - top-of-atmosphere solar flux from the planet's star, in watts per square meter
+    axis_tilt_deg (float) - tilt of the planetary rotation axis, in degrees (ignored for tidally locked planets)
+    tidal_lock (bool) - true for a tidally-locked plant (same side always faces the host star), false for a planet with
+                        a day-night cycle (even if one day is significantly different from Earth)
+    mean_surface_pressure_kPa (float) - atmospheric pressure at sea-level, in kPa
+    altitude_m (float) - altitude above (or below, if negative) sea-level, in meters
+    mean_temp_C (float) - annual mean temperature, in degrees C
+    temp_var_C (float) - the +/- range of the temperature throughout the year (1.5 standard deviations), in degrees C
+    annual_precip_mm (float) - the annual mean precipitation, in mm rainfall (10 mm snowfall = 1 mm rainfall)
+    latitude (float) - the latitude coordinate of the location for biome estimation, in degrees north (negative for
+                       south)
+    longitude (float) - the longitude coordinate of the location for biome estimation, in degrees east (negative for
+                        west)
+    exoplanet (bool) - set to true to include more exotic biomes not found on Earth, set to false to only use Earthly
+                       biomes
+
+Returns:
+    (uint8) returns the DrPlantabyte Biome code for the predicted biome, or 0 if no biome prediction could be made
+
+Biome Code Reference:
+    Code   Biome
+       0   UNKNOWN
+       1   WETLAND
+       2   JUNGLE
+       3   SEASONAL_FOREST
+       4   NEEDLELEAF_FOREST
+       5   GRASSLAND
+       6   DESERT_SHRUBLAND
+       7   TUNDRA
+       8   BARREN
+       9   SAND_SEA
+   10-15   -- (reserved for future use)
+      16   DEEP_OCEAN
+      17   FRESHWATER
+      18   SEA_FOREST
+      19   TROPICAL_REEF
+      20   ROCKY_SHALLOWS
+      21   SHALLOW_OCEAN
+      22   ICE_SHEET
+      23   BOILING_SEA
+   24-31   -- (reserved for future use)
+      32   FARMLAND
+      33   URBAN
+      34   RUINS
+   35-63   -- (reserved for future use)
+      64   MOONSCAPE
+      65   MAGMA_SEA
+      66   CRYOGEN_SEA
+      67   GAS_GIANT
+      68   STAR
+      69   NEUTRON_STAR
+      70   EVENT_HORIZON
+  71-111   -- (not used)
+     112   BIOLUMINESCENT
+     113   DEAD
+     114   MAGIC_GARDEN
+     115   ELEMENTAL_CHAOS
+     116   OOZE
+    """
     cdef float pi = 3.14159265358979
     cdef float two_over_pi = 0.5 * pi
     cdef float deg2Rad = pi / 180
@@ -311,6 +377,64 @@ cpdef unsigned char classify_biome_on_planet_surface(
     float annual_precip_mm,
     bint exoplanet
 ):
+    """
+This function estimates the biome code for a given set of climate parameters, with the option to include extreme
+exoplanet biomes that do not exist on Earth
+
+Parameters:
+    gravity_m_per_s2 (float) - gravity at the surface of the planet, in meters per second per second
+    mean_surface_pressure_kPa (float) - atmospheric pressure at sea-level, in kPa
+    mean_solar_flux_Wpm2 (float) - annual mean solar flux, in watts per square meter
+    altitude_m (float) - altitude above (or below, if negative) sea-level, in meters
+    mean_temp_C (float) - annual mean temperature, in degrees C
+    temp_var_C (float) - the +/- range of the temperature throughout the year (1.5 standard deviations), in degrees C
+    annual_precip_mm (float) - the annual mean precipitation, in mm rainfall (10 mm snowfall = 1 mm rainfall)
+    exoplanet (bool) - set to true to include more exotic biomes not found on Earth, set to false to only use Earthly
+                       biomes
+
+Returns:
+    (uint8) returns the DrPlantabyte Biome code for the predicted biome, or 0 if no biome prediction could be made
+
+Biome Code Reference:
+    Code   Biome
+       0   UNKNOWN
+       1   WETLAND
+       2   JUNGLE
+       3   SEASONAL_FOREST
+       4   NEEDLELEAF_FOREST
+       5   GRASSLAND
+       6   DESERT_SHRUBLAND
+       7   TUNDRA
+       8   BARREN
+       9   SAND_SEA
+   10-15   -- (reserved for future use)
+      16   DEEP_OCEAN
+      17   FRESHWATER
+      18   SEA_FOREST
+      19   TROPICAL_REEF
+      20   ROCKY_SHALLOWS
+      21   SHALLOW_OCEAN
+      22   ICE_SHEET
+      23   BOILING_SEA
+   24-31   -- (reserved for future use)
+      32   FARMLAND
+      33   URBAN
+      34   RUINS
+   35-63   -- (reserved for future use)
+      64   MOONSCAPE
+      65   MAGMA_SEA
+      66   CRYOGEN_SEA
+      67   GAS_GIANT
+      68   STAR
+      69   NEUTRON_STAR
+      70   EVENT_HORIZON
+  71-111   -- (not used)
+     112   BIOLUMINESCENT
+     113   DEAD
+     114   MAGIC_GARDEN
+     115   ELEMENTAL_CHAOS
+     116   OOZE
+    """
     if isnan(gravity_m_per_s2 + mean_surface_pressure_kPa + mean_solar_flux_Wpm2 + altitude_m + mean_temp_C + temp_var_C + annual_precip_mm):
         return UNKNOWN
     cdef float water_supercritical_pressure = 22000 # kPa
@@ -323,11 +447,12 @@ cpdef unsigned char classify_biome_on_planet_surface(
     cdef float cryo_crit_pressure = 3400 # kPa
     cdef float cryo_triple_temp = -210 # C
     # cdef float cryo_triple_pressure = 12.5 # kPa
-    cdef float ice_vapor_pressure_kPa = 0.67085*exp(0.0963822*mean_temp_C) # if less pressure than this, then no ice
+    cdef float vapor_pressure_kPa = 0.61094 * exp((17.625 * (mean_temp_C + temp_var_C)) / ((mean_temp_C + temp_var_C) + 243.04)) # Magnus formula
     cdef above_sealevel_m = altitude_m
     if above_sealevel_m < 0:
         above_sealevel_m = 0
     cdef float pressure_kPa = pressure_at_altitude(gravity_m_per_s2, mean_surface_pressure_kPa, mean_temp_C, above_sealevel_m)
+    cdef float boiling_point_C = boiling_point(pressure_kPa)
     if exoplanet: ## try to detect extreme conditions of a non-goldilocks-zone planet
         if mean_temp_C > quartz_boiling_boint_C:
             ## at least as hot as a red dwarf XD
@@ -335,14 +460,14 @@ cpdef unsigned char classify_biome_on_planet_surface(
         if pressure_kPa > water_supercritical_pressure:
             ### defining a gas giant is a bit hand-wavey as of 2022
             return GAS_GIANT
-        if pressure_kPa < ice_vapor_pressure_kPa:
-            ### not enough atmosphere to be anything other than a naked rock!
-            return MOONSCAPE
         if mean_temp_C > pyroxene_melting_point_C:
             if altitude_m <= 0:
                 return MAGMA_SEA
             else:
                 return MOONSCAPE
+        if pressure_kPa < vapor_pressure_kPa or (mean_temp_C - temp_var_C) > boiling_point_C:
+            ### not enough atmosphere to be anything other than a naked rock!
+            return MOONSCAPE
         if (mean_temp_C > cryo_triple_temp) and (mean_temp_C < cryo_crit_temp) and \
                 (pressure_kPa < cryo_crit_pressure) and ( pressure_kPa > (1.6298e9*exp(0.08898*mean_temp_C))):
             ## liquid nitrogen planet! (like pluto)
@@ -387,7 +512,7 @@ cpdef float clip(float x, float xmin, float xmax):
         return xmax
     return x
 
-cpdef float rescale(x, xmin, xmax):
+cpdef float rescale(float x, float xmin, float xmax):
     return (x - xmin) / (xmax - xmin)
 
 cdef float dist4f(float a1, float b1, float c1, float d1, float a2, float b2, float c2, float d2):
@@ -408,6 +533,66 @@ cpdef classify_planet_biomes(
     float[:] annual_precip_mm,
     bint exoplanet,
 ):
+    """
+This function estimates the biome codes for an array of planet and climate parameters, with the option to include
+extreme exoplanet biomes that do not exist on Earth
+
+Parameters:
+    gravity_m_per_s2 (float) - gravity at the surface of the planet, in meters per second per second
+    mean_surface_pressure_kPa (float) - atmospheric pressure at sea-level, in kPa
+    mean_solar_flux_Wpm2 (numpy.ndarray with one dimension) - annual mean solar flux, in watts per square meter
+    altitude_m (numpy.ndarray with one dimension) - altitude above (or below, if negative) sea-level, in meters
+    mean_temp_C (numpy.ndarray with one dimension) - annual mean temperature, in degrees C
+    temp_var_C (numpy.ndarray with one dimension) - the +/- range of the temperature throughout the year (1.5 standard
+                                                    deviations), in degrees C
+    annual_precip_mm (numpy.ndarray with one dimension) - the annual mean precipitation, in mm rainfall (10 mm snowfall
+                                                          = 1 mm rainfall)
+    exoplanet (bool) - set to true to include more exotic biomes not found on Earth, set to false to only use Earthly
+                       biomes
+
+Returns:
+    (numpy.ndarray with dtype=uint8) returns the DrPlantabyte Biome codes for the predicted biomes
+
+Biome Code Reference:
+    Code   Biome
+       0   UNKNOWN
+       1   WETLAND
+       2   JUNGLE
+       3   SEASONAL_FOREST
+       4   NEEDLELEAF_FOREST
+       5   GRASSLAND
+       6   DESERT_SHRUBLAND
+       7   TUNDRA
+       8   BARREN
+       9   SAND_SEA
+   10-15   -- (reserved for future use)
+      16   DEEP_OCEAN
+      17   FRESHWATER
+      18   SEA_FOREST
+      19   TROPICAL_REEF
+      20   ROCKY_SHALLOWS
+      21   SHALLOW_OCEAN
+      22   ICE_SHEET
+      23   BOILING_SEA
+   24-31   -- (reserved for future use)
+      32   FARMLAND
+      33   URBAN
+      34   RUINS
+   35-63   -- (reserved for future use)
+      64   MOONSCAPE
+      65   MAGMA_SEA
+      66   CRYOGEN_SEA
+      67   GAS_GIANT
+      68   STAR
+      69   NEUTRON_STAR
+      70   EVENT_HORIZON
+  71-111   -- (not used)
+     112   BIOLUMINESCENT
+     113   DEAD
+     114   MAGIC_GARDEN
+     115   ELEMENTAL_CHAOS
+     116   OOZE
+    """
     # for use with Numpy arrays
     assert tuple(mean_solar_flux_Wpm2.shape) == tuple(altitude_m.shape)
     assert tuple(mean_temp_C.shape) == tuple(altitude_m.shape)
