@@ -114,6 +114,61 @@ cpdef unsigned char classify_biome(
     float temp_var_C,
     float annual_precip_mm
 ):
+    """
+This function estimates the biome code for a given set of climate parameters
+
+Parameters:
+    mean_solar_flux_Wpm2 (float) - annual mean solar flux, in watts per square meter
+    pressure_kPa (float) - atmospheric pressure at the surface (use sea-level pressure for underwater classification),
+                           in kPa
+    altitude_m (float) - altitude above (or below) sea-level, in meters
+    mean_temp_C (float) - annual mean temperature, in degrees C
+    temp_var_C (float) - the +/- range of the temperature throughout the year (1.5 standard deviations), in degrees C
+    annual_precip_mm (float) - the annual mean precipitation, in mm rainfall (10 mm snowfall = 1 mm rainfall)
+
+Returns:
+    (uint8) returns the DrPlantabyte Biome code for the predicted biome, or 0 if no biome prediction could be made
+
+Biome Code Reference:
+    Code   Biome
+       0   UNKNOWN
+       1   WETLAND
+       2   JUNGLE
+       3   SEASONAL_FOREST
+       4   NEEDLELEAF_FOREST
+       5   GRASSLAND
+       6   DESERT_SHRUBLAND
+       7   TUNDRA
+       8   BARREN
+       9   SAND_SEA
+   10-15   -- (reserved for future use)
+      16   DEEP_OCEAN
+      17   FRESHWATER
+      18   SEA_FOREST
+      19   TROPICAL_REEF
+      20   ROCKY_SHALLOWS
+      21   SHALLOW_OCEAN
+      22   ICE_SHEET
+      23   BOILING_SEA
+   24-31   -- (reserved for future use)
+      32   FARMLAND
+      33   URBAN
+      34   RUINS
+   35-63   -- (reserved for future use)
+      64   MOONSCAPE
+      65   MAGMA_SEA
+      66   CRYOGEN_SEA
+      67   GAS_GIANT
+      68   STAR
+      69   NEUTRON_STAR
+      70   EVENT_HORIZON
+  71-111   -- (not used)
+     112   BIOLUMINESCENT
+     113   DEAD
+     114   MAGIC_GARDEN
+     115   ELEMENTAL_CHAOS
+     116   OOZE
+    """
     ## constants and variables
     cdef min_rain_limit_mm = 110
     cdef max_rain_limit_mm = 6000 # too much rain and we'll call it a wetland instead of a jungle
