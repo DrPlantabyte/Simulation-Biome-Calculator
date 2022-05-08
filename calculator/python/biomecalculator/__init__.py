@@ -19,7 +19,8 @@ Mars={'planet_mass_kg': 6.417e23, 'planet_mean_radius_km': 3.390e3, 'toa_solar_f
 'axis_tilt_deg': 25, 'mean_surface_pressure_kPa': 0.6}
 Isidis_Mars={'altitude_m': -3500, 'mean_temp_C': -71.9, 'temp_var_C': 30, 'annual_precip_mm': 0.0,
 'latitude': 12.9, 'longitude': 87.0}
-biomecalculator.classify_biome_on_planet(**Mars, **Isidis_Mars, exoplanet=True, tidal_lock=False)
+print(biomecalculator.classify_biome_on_planet(**Mars, **Isidis_Mars, exoplanet=True, tidal_lock=False))
+>>> Biome.MOONSCAPE
 
 
 """

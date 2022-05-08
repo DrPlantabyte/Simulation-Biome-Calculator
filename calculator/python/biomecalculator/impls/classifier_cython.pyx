@@ -446,6 +446,8 @@ Biome Code Reference:
     cdef float cryo_crit_temp = -147 # C
     cdef float cryo_crit_pressure = 3400 # kPa
     cdef float cryo_triple_temp = -210 # C
+    cdef float goldilocks_min_atmosphere = 4.0 # kPa, water must be liquid up to 30 C for earth-like geography
+    cdef float goldilocks_max_atmosphere = 3350 # kPa, no super-critical gasses allowed for earth-like geography
     # cdef float cryo_triple_pressure = 12.5 # kPa
     cdef float vapor_pressure_kPa = 0.61094 * exp((17.625 * (mean_temp_C + temp_var_C)) / ((mean_temp_C + temp_var_C) + 243.04)) # Magnus formula
     cdef above_sealevel_m = altitude_m
@@ -473,8 +475,12 @@ Biome Code Reference:
             ## liquid nitrogen planet! (like pluto)
             if altitude_m <= 0:
                 return CRYOGEN_SEA
-            else:
+            elif annual_precip_mm > 0:
                 return ICE_SHEET
+            else:
+                return MOONSCAPE
+        if mean_surface_pressure_kPa < goldilocks_min_atmosphere or mean_surface_pressure_kPa > goldilocks_max_atmosphere:
+            return MOONSCAPE
     ## then check normal biomes
     return classify_biome(
         mean_solar_flux_Wpm2,
