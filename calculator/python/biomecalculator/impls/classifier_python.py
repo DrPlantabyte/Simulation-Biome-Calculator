@@ -1,3 +1,7 @@
+"""
+Pure python implementation of the classifier
+"""
+
 import numpy
 from numpy import ndarray
 from ..biomes import Biome

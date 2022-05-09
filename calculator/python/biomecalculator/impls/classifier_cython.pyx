@@ -1,3 +1,7 @@
+"""
+Cython implementation of the classifier
+"""
+
 import cython
 from libc.math cimport sin, cos, exp, log10, log, pow, sqrt
 import numpy
