@@ -441,19 +441,25 @@ Biome Code Reference:
     assert tuple(temp_var_C.shape) == tuple(altitude_m.shape)
     assert tuple(annual_precip_mm.shape) == tuple(altitude_m.shape)
     #
+    _shape = mean_temp_C.shape
+    _mean_solar_flux_Wpm2 = mean_solar_flux_Wpm2.reshape((-1,))
+    _altitude_m = altitude_m.reshape((-1,))
+    _mean_temp_C = mean_temp_C.reshape((-1,))
+    _temp_var_C = temp_var_C.reshape((-1,))
+    _annual_precip_mm = annual_precip_mm.reshape((-1,))
     result_view = numpy.zeros_like(mean_temp_C, dtype=numpy.uint8).reshape((-1,))
     #
     for i in range(result_view.shape[0]):
         result_view[i] = classify_biome_on_planet_surface(
             gravity_m_per_s2,
             mean_surface_pressure_kPa,
-            mean_solar_flux_Wpm2[i],
-            altitude_m[i],
-            mean_temp_C[i],
-            temp_var_C[i],
-            annual_precip_mm[i],
+            _mean_solar_flux_Wpm2[i],
+            _altitude_m[i],
+            _mean_temp_C[i],
+            _temp_var_C[i],
+            _annual_precip_mm[i],
             exoplanet
         )
-    result = result_view.reshape(mean_temp_C.shape)
+    result = result_view.reshape(_shape)
     return result
 
