@@ -4,7 +4,7 @@ from setuptools import setup
 from Cython.Build import cythonize
 
 setup(name='Biome_Calculator',
-	version='1.0.0',
+	version='1.0.1',
 	description="Dr. Planbtabyte's biome calculator",
 	author='Christopher C. Hall',
 	author_email='explosivegnome@yahoo.com',
