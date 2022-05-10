@@ -24,46 +24,47 @@ yyy = biome category (0=terrestrial, 1=aquatic, 2=artificial, 4=astronomical, 7=
 xxxx = biome code within category
 
 The full list of biomes are as follows:
-  code  Name              Description
- ------ ----------------- -------------------
-     0  UNKNOWN           Unclassifiable biome
-   ========== Terrestrial Biomes ==========
-     1  WETLAND           Permanent wetland
-     2  JUNGLE            Tropical rainforest
-     3  SEASONAL_FOREST   Temperate deciduous forest
-     4  NEEDLELEAF_FOREST Temperate evergreen forest
-     5  GRASSLAND         Plains, prairies, and savannas
-     6  DESERT_SHRUBLAND  Dry shrublands and less extreme deserts
-     7  TUNDRA            Seasonal grasslands where it is too cold for trees
-     8  BARREN            Exposed rocks with little to no macroscopic life
-     9  SAND_SEA          Sand dunes with little to no macroscopic life
-   ========== Aquatic Biomes ==========
-    17  FRESHWATER        Lakes and rivers
-    18  SEA_FOREST        Seagrass meadows and seaweed forests
-    19  TROPICAL_REEF     Coral reefs
-    20  ROCKY_SHALLOWS    Low productivity shallow marine waters
-    16  DEEP_OCEAN        Ocean
-    21  SHALLOW_OCEAN     Shallow ocean regions where light reaches seabed
-    22  ICE_SHEET         Frozen ocean or land covered in permanent ice
-    23  BOILING_SEA       Water body so hot that it boils
-   ========== Artificial Biomes ==========
-    32  FARMLAND          Cultivated land
-    33  URBAN             Cities, streets, and other artificial structures
-    34  RUINS             Abandoned urban areas being reclaimed by nature
-   ========== Astronomical "Biomes" ==========
-    64  MOONSCAPE         Lifeless dry dust and/or rock
-    65  MAGMA_SEA         Ocean of molten rock
-    66  CRYOGEN_SEA       Ocean of liquid cryogen (eg liquid nitrogen)
-    67  GAS_GIANT         "Surface" of planet with extremely thick atmosphere
-    68  STAR              Surface of a star
-    69  NEUTRON_STAR      Surface of a neutron star
-    70  EVENT_HORIZON     "Surface" of a black hole
-   ========== Fantasy Biomes ==========
-   112  BIOLUMINESCENT    Permanently dark biome with bioluminescent plants/fungi
-   113  DEAD              Dead (or undead) landscape
-   114  MAGIC_GARDEN      Magical paradise
-   115  ELEMENTAL_CHAOS   Floating rocks, never-melting ice, dancing fire, etc.
-   116  OOZE              Living landscape, such as an ocean-sized amoeba
+| code |Name             |Description                                       |
+|------|-----------------|--------------------------------------------------|
+|    0 |UNKNOWN          |Unclassifiable biome                              |
+|      | *Terrestrial Biomes* |                                             |
+|    1 |WETLAND          |Permanent wetland                                 |
+|    2 |JUNGLE           |Tropical rainforest                               |
+|    3 |SEASONAL_FOREST  |Temperate deciduous forest                        |
+|    4 |NEEDLELEAF_FOREST|Temperate evergreen forest                        |
+|    5 |GRASSLAND        |Plains, prairies, and savannas                    |
+|    6 |DESERT_SHRUBLAND |Dry shrublands and less extreme deserts           |
+|    7 |TUNDRA           |Seasonal grasslands where it is too cold for trees|
+|    8 |BARREN           |Exposed rocks with little to no macroscopic life  |
+|    9 |SAND_SEA         |Sand dunes with little to no macroscopic life     |
+|      | *Aquatic Biomes*|                                                  |
+|   17 |FRESHWATER       |Lakes and rivers                                  |
+|   18 |SEA_FOREST       |Seagrass meadows and seaweed forests              |
+|   19 |TROPICAL_REEF    |Coral reefs                                       |
+|   20 |ROCKY_SHALLOWS   |Low productivity shallow marine waters            |
+|   16 |DEEP_OCEAN       |Ocean                                             |
+|   21 |SHALLOW_OCEAN    |Shallow ocean regions where light reaches seabed  |
+|   22 |ICE_SHEET        |Frozen ocean or land covered in permanent ice     |
+|   23 |BOILING_SEA      |Water body so hot that it boils                   |
+|      | *Artificial Biomes* |                                              |
+|   32 |FARMLAND         |Cultivated land                                   |
+|   33 |URBAN            |Cities, streets, and other artificial structures  |
+|   34 |RUINS            |Abandoned urban areas being reclaimed by nature   |
+|      | *Astronomical "Biomes"* |                                          |
+|   64 |MOONSCAPE        |Lifeless dry dust and/or rock                     |
+|   65 |MAGMA_SEA        |Ocean of molten rock                              |
+|   66 |CRYOGEN_SEA      |Ocean of liquid cryogen (eg liquid nitrogen)      |
+|   67 |GAS_GIANT        |"Surface" of planet with extreme thick atmosphere |
+|   68 |STAR             |Surface of a star                                 |
+|   69 |NEUTRON_STAR     |Surface of a neutron star                         |
+|   70 |EVENT_HORIZON    |"Surface" of a black hole                         |
+|      | *Fantasy Biomes*|                                                  |
+|  112 |BIOLUMINESCENT   |Permanently dark biome with bioluminescent flora  |
+|  113 |DEAD             |Dead (or undead) landscape                        |
+|  114 |MAGIC_GARDEN     |Magical paradise                                  |
+|  115 |ELEMENTAL_CHAOS  |Floating rocks, never-melt ice, dancing fire, etc.|
+|  116 |OOZE             |Living landscape, such as an ocean-sized amoeba   |
+
 	"""
 	UNKNOWN = 0x00
 	# bits: 0yyyxxxx
