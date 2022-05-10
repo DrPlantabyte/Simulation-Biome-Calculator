@@ -59,7 +59,209 @@ print(biome_map)
 import sys, numpy
 from .biomes import Biome
 
-from .impls import classifier_python
+
+try:
+	import pyximport
+	pyximport.install()
+	from .impls import classifier_cython
+	## replace pure-python fuctions with Cython versions
+	def _classify_biome(
+			mean_solar_flux_Wpm2,
+			pressure_kPa,
+			altitude_m,
+			mean_temp_C,
+			temp_var_C,
+			annual_precip_mm
+	) -> Biome:
+		return Biome(classifier_cython.classify_biome(
+			mean_solar_flux_Wpm2,
+			pressure_kPa,
+			altitude_m,
+			mean_temp_C,
+			temp_var_C,
+			annual_precip_mm
+		))
+
+	def _classify_biome_on_planet(
+		planet_mass_kg: float,
+		planet_mean_radius_km: float,
+		toa_solar_flux_Wpm2: float,
+		axis_tilt_deg: float,
+		tidal_lock: bool,
+		mean_surface_pressure_kPa: float,
+		altitude_m: float,
+		mean_temp_C: float,
+		temp_var_C: float,
+		annual_precip_mm: float,
+		latitude: float,
+		longitude: float,
+		exoplanet: bool,
+	) -> Biome:
+		return Biome(classifier_cython.classify_biome_on_planet(
+			planet_mass_kg,
+			planet_mean_radius_km,
+			toa_solar_flux_Wpm2,
+			axis_tilt_deg,
+			tidal_lock,
+			mean_surface_pressure_kPa,
+			altitude_m,
+			mean_temp_C,
+			temp_var_C,
+			annual_precip_mm,
+			latitude,
+			longitude,
+			exoplanet
+		))
+
+	def _classify_biome_on_planet_surface(
+			gravity_m_per_s2: float,
+			mean_surface_pressure_kPa: float,
+			mean_solar_flux_Wpm2: float,
+			altitude_m: float,
+			mean_temp_C: float,
+			temp_var_C: float,
+			annual_precip_mm: float,
+			exoplanet: bool
+	) -> Biome:
+		return Biome(classifier_cython.classify_biome_on_planet_surface(
+			gravity_m_per_s2,
+			mean_surface_pressure_kPa,
+			mean_solar_flux_Wpm2,
+			altitude_m,
+			mean_temp_C,
+			temp_var_C,
+			annual_precip_mm,
+			exoplanet
+		))
+
+	def _classify_planet_biomes(
+		gravity_m_per_s2: float,
+		mean_surface_pressure_kPa: float,
+		mean_solar_flux_Wpm2: numpy.ndarray,
+		altitude_m: numpy.ndarray,
+		mean_temp_C: numpy.ndarray,
+		temp_var_C: numpy.ndarray,
+		annual_precip_mm: numpy.ndarray,
+		exoplanet: bool
+	) -> numpy.ndarray:
+		assert tuple(mean_solar_flux_Wpm2.shape) == tuple(altitude_m.shape)
+		assert tuple(mean_temp_C.shape) == tuple(altitude_m.shape)
+		assert tuple(temp_var_C.shape) == tuple(altitude_m.shape)
+		assert tuple(annual_precip_mm.shape) == tuple(altitude_m.shape)
+		_mean_solar_flux_Wpm2 = mean_solar_flux_Wpm2.astype(numpy.float32).reshape((-1,))
+		_altitude_m = altitude_m.astype(numpy.float32).reshape((-1,))
+		_mean_temp_C = mean_temp_C.astype(numpy.float32).reshape((-1,))
+		_temp_var_C = temp_var_C.astype(numpy.float32).reshape((-1,))
+		_annual_precip_mm = annual_precip_mm.astype(numpy.float32).reshape((-1,))
+		biomes = classifier_cython.classify_planet_biomes(
+			gravity_m_per_s2,
+			mean_surface_pressure_kPa,
+			_mean_solar_flux_Wpm2,
+			_altitude_m,
+			_mean_temp_C,
+			_temp_var_C,
+			_annual_precip_mm,
+			exoplanet
+		)
+		return biomes.reshape(mean_temp_C.shape)
+	print('INFO: using Cython bindings for improved performance', file=sys.stderr)
+	#
+except Exception as ex:
+	print(ex, file=sys.stderr)
+	print('WARNING: Failed to import Cython optimized bindings, using pure Python implementation instead. Performance may by suffer.', file=sys.stderr)
+	from .impls import classifier_python
+
+	def _classify_biome(
+			mean_solar_flux_Wpm2,
+			pressure_kPa,
+			altitude_m,
+			mean_temp_C,
+			temp_var_C,
+			annual_precip_mm
+	) -> Biome:
+		return Biome(classifier_python.classify_biome(
+			mean_solar_flux_Wpm2,
+			pressure_kPa,
+			altitude_m,
+			mean_temp_C,
+			temp_var_C,
+			annual_precip_mm
+		))
+
+	def _classify_biome_on_planet(
+			planet_mass_kg: float,
+			planet_mean_radius_km: float,
+			toa_solar_flux_Wpm2: float,
+			axis_tilt_deg: float,
+			tidal_lock: bool,
+			mean_surface_pressure_kPa: float,
+			altitude_m: float,
+			mean_temp_C: float,
+			temp_var_C: float,
+			annual_precip_mm: float,
+			latitude: float,
+			longitude: float,
+			exoplanet: bool,
+	) -> Biome:
+		return Biome(classifier_python.classify_biome_on_planet(
+			planet_mass_kg,
+			planet_mean_radius_km,
+			toa_solar_flux_Wpm2,
+			axis_tilt_deg,
+			tidal_lock,
+			mean_surface_pressure_kPa,
+			altitude_m,
+			mean_temp_C,
+			temp_var_C,
+			annual_precip_mm,
+			latitude,
+			longitude,
+			exoplanet
+		))
+
+	def _classify_biome_on_planet_surface(
+			gravity_m_per_s2: float,
+			mean_surface_pressure_kPa: float,
+			mean_solar_flux_Wpm2: float,
+			altitude_m: float,
+			mean_temp_C: float,
+			temp_var_C: float,
+			annual_precip_mm: float,
+			exoplanet: bool
+	) -> Biome:
+		return Biome(classifier_python.classify_biome_on_planet_surface(
+			gravity_m_per_s2,
+			mean_surface_pressure_kPa,
+			mean_solar_flux_Wpm2,
+			altitude_m,
+			mean_temp_C,
+			temp_var_C,
+			annual_precip_mm,
+			exoplanet
+		))
+
+	def _classify_planet_biomes(
+			gravity_m_per_s2: float,
+			mean_surface_pressure_kPa: float,
+			mean_solar_flux_Wpm2: numpy.ndarray,
+			altitude_m: numpy.ndarray,
+			mean_temp_C: numpy.ndarray,
+			temp_var_C: numpy.ndarray,
+			annual_precip_mm: numpy.ndarray,
+			exoplanet: bool
+	) -> numpy.ndarray:
+		return classifier_python.classify_planet_biomes(
+			gravity_m_per_s2,
+			mean_surface_pressure_kPa,
+			mean_solar_flux_Wpm2,
+			altitude_m,
+			mean_temp_C,
+			temp_var_C,
+			annual_precip_mm,
+			exoplanet
+		)
+
+
 def classify_biome(
 	mean_solar_flux_Wpm2,
 	pressure_kPa,
@@ -83,14 +285,14 @@ Parameters:
 Returns:
     (Biome) returns the DrPlantabyte Biome enum for the predicted biome
     """
-	return Biome(classifier_python.classify_biome(
+	return _classify_biome(
 		mean_solar_flux_Wpm2,
 		pressure_kPa,
 		altitude_m,
 		mean_temp_C,
 		temp_var_C,
 		annual_precip_mm
-	))
+	)
 
 def classify_biome_on_planet(
 	planet_mass_kg: float,
@@ -133,7 +335,7 @@ Parameters:
 Returns:
     (Biome) returns the DrPlantabyte Biome code for the predicted biome, or 0 if no biome prediction could be made
     """
-	return Biome(classifier_python.classify_biome_on_planet(
+	return _classify_biome_on_planet(
 		planet_mass_kg,
 		planet_mean_radius_km,
 		toa_solar_flux_Wpm2,
@@ -147,7 +349,7 @@ Returns:
 		latitude,
 		longitude,
 		exoplanet
-	))
+	)
 
 def classify_biome_on_planet_surface(
     gravity_m_per_s2: float,
@@ -177,7 +379,7 @@ Parameters:
 Returns:
     (Biome) returns the DrPlantabyte Biome code for the predicted biome, or 0 if no biome prediction could be made
     """
-	return Biome(classifier_python.classify_biome_on_planet_surface(
+	return _classify_biome_on_planet_surface(
 		gravity_m_per_s2,
 		mean_surface_pressure_kPa,
 		mean_solar_flux_Wpm2,
@@ -186,7 +388,7 @@ Returns:
 		temp_var_C,
 		annual_precip_mm,
 		exoplanet
-	))
+	)
 
 def classify_planet_biomes(
 	gravity_m_per_s2: float,
@@ -217,7 +419,7 @@ Parameters:
 Returns:
     (numpy.ndarray with dtype=uint8) returns the DrPlantabyte Biome codes for the predicted biomes
     """
-	return classifier_python.classify_planet_biomes(
+	return _classify_planet_biomes(
 		gravity_m_per_s2,
 		mean_surface_pressure_kPa,
 		mean_solar_flux_Wpm2,
@@ -227,121 +429,3 @@ Returns:
 		annual_precip_mm,
 		exoplanet
 	)
-
-try:
-	import pyximport
-	pyximport.install()
-	from .impls import classifier_cython
-	## replace pure-python fuctions with Cython versions
-	def _classify_biome(
-			mean_solar_flux_Wpm2,
-			pressure_kPa,
-			altitude_m,
-			mean_temp_C,
-			temp_var_C,
-			annual_precip_mm
-	) -> Biome:
-		return Biome(classifier_cython.classify_biome(
-			mean_solar_flux_Wpm2,
-			pressure_kPa,
-			altitude_m,
-			mean_temp_C,
-			temp_var_C,
-			annual_precip_mm
-		))
-
-	classify_biome = _classify_biome
-
-	def _classify_biome_on_planet(
-		planet_mass_kg: float,
-		planet_mean_radius_km: float,
-		toa_solar_flux_Wpm2: float,
-		axis_tilt_deg: float,
-		tidal_lock: bool,
-		mean_surface_pressure_kPa: float,
-		altitude_m: float,
-		mean_temp_C: float,
-		temp_var_C: float,
-		annual_precip_mm: float,
-		latitude: float,
-		longitude: float,
-		exoplanet: bool,
-	) -> Biome:
-		return Biome(classifier_cython.classify_biome_on_planet(
-			planet_mass_kg,
-			planet_mean_radius_km,
-			toa_solar_flux_Wpm2,
-			axis_tilt_deg,
-			tidal_lock,
-			mean_surface_pressure_kPa,
-			altitude_m,
-			mean_temp_C,
-			temp_var_C,
-			annual_precip_mm,
-			latitude,
-			longitude,
-			exoplanet
-		))
-
-	classify_biome_on_planet = _classify_biome_on_planet
-
-	def _classify_biome_on_planet_surface(
-			gravity_m_per_s2: float,
-			mean_surface_pressure_kPa: float,
-			mean_solar_flux_Wpm2: float,
-			altitude_m: float,
-			mean_temp_C: float,
-			temp_var_C: float,
-			annual_precip_mm: float,
-			exoplanet: bool
-	) -> Biome:
-		return Biome(classifier_cython.classify_biome_on_planet_surface(
-			gravity_m_per_s2,
-			mean_surface_pressure_kPa,
-			mean_solar_flux_Wpm2,
-			altitude_m,
-			mean_temp_C,
-			temp_var_C,
-			annual_precip_mm,
-			exoplanet
-		))
-
-	classify_biome_on_planet_surface = _classify_biome_on_planet_surface
-
-	def _classify_planet_biomes(
-		gravity_m_per_s2: float,
-		mean_surface_pressure_kPa: float,
-		mean_solar_flux_Wpm2: numpy.ndarray,
-		altitude_m: numpy.ndarray,
-		mean_temp_C: numpy.ndarray,
-		temp_var_C: numpy.ndarray,
-		annual_precip_mm: numpy.ndarray,
-		exoplanet: bool
-	) -> numpy.ndarray:
-		assert tuple(mean_solar_flux_Wpm2.shape) == tuple(altitude_m.shape)
-		assert tuple(mean_temp_C.shape) == tuple(altitude_m.shape)
-		assert tuple(temp_var_C.shape) == tuple(altitude_m.shape)
-		assert tuple(annual_precip_mm.shape) == tuple(altitude_m.shape)
-		_mean_solar_flux_Wpm2 = mean_solar_flux_Wpm2.astype(numpy.float32).reshape((-1,))
-		_altitude_m = altitude_m.astype(numpy.float32).reshape((-1,))
-		_mean_temp_C = mean_temp_C.astype(numpy.float32).reshape((-1,))
-		_temp_var_C = temp_var_C.astype(numpy.float32).reshape((-1,))
-		_annual_precip_mm = annual_precip_mm.astype(numpy.float32).reshape((-1,))
-		biomes = classifier_python.classify_planet_biomes(
-			gravity_m_per_s2,
-			mean_surface_pressure_kPa,
-			_mean_solar_flux_Wpm2,
-			_altitude_m,
-			_mean_temp_C,
-			_temp_var_C,
-			_annual_precip_mm,
-			exoplanet
-		)
-		return biomes.reshape(mean_temp_C.shape)
-
-	classify_planet_biomes = _classify_planet_biomes
-	print('INFO: using Cython bindings for improved performance', file=sys.stderr)
-	#
-except Exception as ex:
-	print(ex, file=sys.stderr)
-	print('WARNING: Failed to import Cython optimized bindings, using pure Python implementation instead. Performance may by suffer.', file=sys.stderr)

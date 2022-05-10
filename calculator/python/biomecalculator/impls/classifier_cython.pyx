@@ -1,5 +1,46 @@
 """
 Cython implementation of the classifier
+
+
+Biome Code Reference:
+    Code   Biome
+       0   UNKNOWN
+       1   WETLAND
+       2   JUNGLE
+       3   SEASONAL_FOREST
+       4   NEEDLELEAF_FOREST
+       5   GRASSLAND
+       6   DESERT_SHRUBLAND
+       7   TUNDRA
+       8   BARREN
+       9   SAND_SEA
+   10-15   -- (reserved for future use)
+      16   DEEP_OCEAN
+      17   FRESHWATER
+      18   SEA_FOREST
+      19   TROPICAL_REEF
+      20   ROCKY_SHALLOWS
+      21   SHALLOW_OCEAN
+      22   ICE_SHEET
+      23   BOILING_SEA
+   24-31   -- (reserved for future use)
+      32   FARMLAND
+      33   URBAN
+      34   RUINS
+   35-63   -- (reserved for future use)
+      64   MOONSCAPE
+      65   MAGMA_SEA
+      66   CRYOGEN_SEA
+      67   GAS_GIANT
+      68   STAR
+      69   NEUTRON_STAR
+      70   EVENT_HORIZON
+  71-111   -- (not used)
+     112   BIOLUMINESCENT
+     113   DEAD
+     114   MAGIC_GARDEN
+     115   ELEMENTAL_CHAOS
+     116   OOZE
 """
 
 import cython
@@ -111,28 +152,28 @@ cdef float[9][5][4] ref_points = [
 ]
 
 cpdef unsigned char _cython_classify_biome(
-    float mean_solar_flux_Wpm2,
-    float pressure_kPa,
-    float altitude_m,
-    float mean_temp_C,
-    float temp_var_C,
-    float annual_precip_mm
+    double mean_solar_flux_Wpm2,
+    double pressure_kPa,
+    double altitude_m,
+    double mean_temp_C,
+    double temp_var_C,
+    double annual_precip_mm
 ):
     ## constants and variables
     cdef min_rain_limit_mm = 110
     cdef max_rain_limit_mm = 6000 # too much rain and we'll call it a wetland instead of a jungle
-    cdef float photic_zone_min_solar_flux_Wpm2 = 35
-    cdef float wave_disruption_depth_m = -6 # corals, seagrasses, kelps, etc cannot grow above this depth
-    cdef float epsilon_water = 0.013333  # Absorption per meter (150m == 1% transmission (0.01 = 10^(-epsilon*150))
-    cdef float benthic_solar_flux = mean_solar_flux_Wpm2 * pow(10, epsilon_water*altitude_m) # <- note: altitude is negative here
-    cdef float boiling_point_C = boiling_point(pressure_kPa)
+    cdef double photic_zone_min_solar_flux_Wpm2 = 35
+    cdef double wave_disruption_depth_m = -6 # corals, seagrasses, kelps, etc cannot grow above this depth
+    cdef double epsilon_water = 0.013333  # Absorption per meter (150m == 1% transmission (0.01 = 10^(-epsilon*150))
+    cdef double benthic_solar_flux = mean_solar_flux_Wpm2 * pow(10, epsilon_water*altitude_m) # <- note: altitude is negative here
+    cdef double boiling_point_C = boiling_point(pressure_kPa)
     ## terrestrial biomes
-    cdef float norm_sol_flux
-    cdef float norm_mtemp
-    cdef float norm_vtemp
-    cdef float norm_precip
-    cdef float closest_dist = 1e35 #
-    cdef float d = 0
+    cdef double norm_sol_flux
+    cdef double norm_mtemp
+    cdef double norm_vtemp
+    cdef double norm_precip
+    cdef double closest_dist = 1e35 #
+    cdef double d = 0
     cdef unsigned char biome_code = UNKNOWN
     if altitude_m > 0:
         if annual_precip_mm > max_rain_limit_mm:
@@ -145,7 +186,7 @@ cpdef unsigned char _cython_classify_biome(
             norm_precip = rescale(sqrt(annual_precip_mm), 0.0, 75.)
             for bclass in range(9):
                 for refpt in range(5):
-                    d = dist4f(
+                    d = dist4fd(
                         ref_points[bclass][refpt][0], ref_points[bclass][refpt][1], ref_points[bclass][refpt][2], ref_points[bclass][refpt][3],
                         norm_sol_flux, norm_mtemp, norm_vtemp, norm_precip
                     )
@@ -188,12 +229,12 @@ cpdef unsigned char _cython_classify_biome(
 
 
 cpdef unsigned char classify_biome(
-    float mean_solar_flux_Wpm2,
-    float pressure_kPa,
-    float altitude_m,
-    float mean_temp_C,
-    float temp_var_C,
-    float annual_precip_mm
+    double mean_solar_flux_Wpm2,
+    double pressure_kPa,
+    double altitude_m,
+    double mean_temp_C,
+    double temp_var_C,
+    double annual_precip_mm
 ):
     """
 This function estimates the biome code for a given set of climate parameters, only considering earthly biomes.
@@ -210,45 +251,6 @@ Parameters:
 Returns:
     (uint8) returns the DrPlantabyte Biome code for the predicted biome, or 0 if no biome prediction could be made
 
-Biome Code Reference:
-    Code   Biome
-       0   UNKNOWN
-       1   WETLAND
-       2   JUNGLE
-       3   SEASONAL_FOREST
-       4   NEEDLELEAF_FOREST
-       5   GRASSLAND
-       6   DESERT_SHRUBLAND
-       7   TUNDRA
-       8   BARREN
-       9   SAND_SEA
-   10-15   -- (reserved for future use)
-      16   DEEP_OCEAN
-      17   FRESHWATER
-      18   SEA_FOREST
-      19   TROPICAL_REEF
-      20   ROCKY_SHALLOWS
-      21   SHALLOW_OCEAN
-      22   ICE_SHEET
-      23   BOILING_SEA
-   24-31   -- (reserved for future use)
-      32   FARMLAND
-      33   URBAN
-      34   RUINS
-   35-63   -- (reserved for future use)
-      64   MOONSCAPE
-      65   MAGMA_SEA
-      66   CRYOGEN_SEA
-      67   GAS_GIANT
-      68   STAR
-      69   NEUTRON_STAR
-      70   EVENT_HORIZON
-  71-111   -- (not used)
-     112   BIOLUMINESCENT
-     113   DEAD
-     114   MAGIC_GARDEN
-     115   ELEMENTAL_CHAOS
-     116   OOZE
     """
     return _cython_classify_biome(
         mean_solar_flux_Wpm2,
@@ -260,34 +262,34 @@ Biome Code Reference:
     )
 
 cpdef unsigned char _cython_classify_biome_on_planet(
-    float planet_mass_kg,
-    float planet_mean_radius_km,
-    float toa_solar_flux_Wpm2,
-    float axis_tilt_deg,
+    double planet_mass_kg,
+    double planet_mean_radius_km,
+    double toa_solar_flux_Wpm2,
+    double axis_tilt_deg,
     bint tidal_lock,
-    float mean_surface_pressure_kPa,
-    float altitude_m,
-    float mean_temp_C,
-    float temp_var_C,
-    float annual_precip_mm,
-    float latitude,
-    float longitude,
+    double mean_surface_pressure_kPa,
+    double altitude_m,
+    double mean_temp_C,
+    double temp_var_C,
+    double annual_precip_mm,
+    double latitude,
+    double longitude,
     bint exoplanet,
 ):
-    cdef float pi = 3.14159265358979
-    cdef float two_over_pi = 0.5 * pi
-    cdef float deg2Rad = pi / 180
+    cdef double pi = 3.14159265358979
+    cdef double two_over_pi = 0.5 * pi
+    cdef double deg2Rad = pi / 180
     #
-    cdef float G = 6.67430e-11 # N m2 / kg2
+    cdef double G = 6.67430e-11 # N m2 / kg2
     cdef radius_m = (planet_mean_radius_km * 1000) + altitude_m
-    cdef float gravity_m_per_s2 = G * planet_mass_kg / (radius_m * radius_m)
+    cdef double gravity_m_per_s2 = G * planet_mass_kg / (radius_m * radius_m)
     cdef above_sealevel_m = altitude_m
     if above_sealevel_m < 0:
         above_sealevel_m = 0
-    cdef float pressure_kPa = pressure_at_altitude(gravity_m_per_s2, mean_surface_pressure_kPa, mean_temp_C, above_sealevel_m)
-    cdef float epsilon_air = 3.46391e-5 # Absorption per kPa (1360 = 1371 * 10^(-eps * 101) )
+    cdef double pressure_kPa = pressure_at_altitude(gravity_m_per_s2, mean_surface_pressure_kPa, mean_temp_C, above_sealevel_m)
+    cdef double epsilon_air = 3.46391e-5 # Absorption per kPa (1360 = 1371 * 10^(-eps * 101) )
     cdef max_flux = toa_solar_flux_Wpm2 * pow(10, -epsilon_air * pressure_kPa)
-    cdef float mean_solar_flux_Wpm2 = 0
+    cdef double mean_solar_flux_Wpm2 = 0
     if tidal_lock:
         mean_solar_flux_Wpm2 = max_flux * two_over_pi * cos(latitude) * clip(cos(longitude), 0, 1)
     else:
@@ -296,11 +298,11 @@ cpdef unsigned char _cython_classify_biome_on_planet(
                 + clip(cos(deg2Rad * (latitude + axis_tilt_deg)), 0, 1)
         )
     ## if doing expoplanet calcualtion, first check astronomical biomes
-    cdef float min_neutron_star_density_Tpm3 = 1e14# tons per cubic meter (aka g/cc)
-    cdef float max_neutron_star_density_Tpm3 = 2e16 # tons per cubic meter (aka g/cc)
-    cdef float planet_volume_m3 = 4.0/3.0*pi*radius_m*radius_m*radius_m
-    cdef float planet_density_Tpm3 = planet_mass_kg / 1000. / planet_volume_m3
-    cdef float red_dwarf_min_mass_kg = 1.2819e29
+    cdef double min_neutron_star_density_Tpm3 = 1e14# tons per cubic meter (aka g/cc)
+    cdef double max_neutron_star_density_Tpm3 = 2e16 # tons per cubic meter (aka g/cc)
+    cdef double planet_volume_m3 = 4.0/3.0*pi*radius_m*radius_m*radius_m
+    cdef double planet_density_Tpm3 = planet_mass_kg / 1000. / planet_volume_m3
+    cdef double red_dwarf_min_mass_kg = 1.2819e29
     if exoplanet: ## try to detect extreme conditions of a non-goldilocks-zone planet
         if planet_density_Tpm3 > max_neutron_star_density_Tpm3:
             ## BLACK HOLE!
@@ -323,18 +325,18 @@ cpdef unsigned char _cython_classify_biome_on_planet(
     )
 
 cpdef unsigned char classify_biome_on_planet(
-    float planet_mass_kg,
-    float planet_mean_radius_km,
-    float toa_solar_flux_Wpm2,
-    float axis_tilt_deg,
+    double planet_mass_kg,
+    double planet_mean_radius_km,
+    double toa_solar_flux_Wpm2,
+    double axis_tilt_deg,
     bint tidal_lock,
-    float mean_surface_pressure_kPa,
-    float altitude_m,
-    float mean_temp_C,
-    float temp_var_C,
-    float annual_precip_mm,
-    float latitude,
-    float longitude,
+    double mean_surface_pressure_kPa,
+    double altitude_m,
+    double mean_temp_C,
+    double temp_var_C,
+    double annual_precip_mm,
+    double latitude,
+    double longitude,
     bint exoplanet,
 ):
     """
@@ -363,45 +365,6 @@ Parameters:
 Returns:
     (uint8) returns the DrPlantabyte Biome code for the predicted biome, or 0 if no biome prediction could be made
 
-Biome Code Reference:
-    Code   Biome
-       0   UNKNOWN
-       1   WETLAND
-       2   JUNGLE
-       3   SEASONAL_FOREST
-       4   NEEDLELEAF_FOREST
-       5   GRASSLAND
-       6   DESERT_SHRUBLAND
-       7   TUNDRA
-       8   BARREN
-       9   SAND_SEA
-   10-15   -- (reserved for future use)
-      16   DEEP_OCEAN
-      17   FRESHWATER
-      18   SEA_FOREST
-      19   TROPICAL_REEF
-      20   ROCKY_SHALLOWS
-      21   SHALLOW_OCEAN
-      22   ICE_SHEET
-      23   BOILING_SEA
-   24-31   -- (reserved for future use)
-      32   FARMLAND
-      33   URBAN
-      34   RUINS
-   35-63   -- (reserved for future use)
-      64   MOONSCAPE
-      65   MAGMA_SEA
-      66   CRYOGEN_SEA
-      67   GAS_GIANT
-      68   STAR
-      69   NEUTRON_STAR
-      70   EVENT_HORIZON
-  71-111   -- (not used)
-     112   BIOLUMINESCENT
-     113   DEAD
-     114   MAGIC_GARDEN
-     115   ELEMENTAL_CHAOS
-     116   OOZE
     """
     return _cython_classify_biome_on_planet(
         planet_mass_kg,
@@ -420,35 +383,35 @@ Biome Code Reference:
     )
 
 cpdef _cython_classify_biome_on_planet_surface(
-    float gravity_m_per_s2,
-    float mean_surface_pressure_kPa,
-    float mean_solar_flux_Wpm2,
-    float altitude_m,
-    float mean_temp_C,
-    float temp_var_C,
-    float annual_precip_mm,
+    double gravity_m_per_s2,
+    double mean_surface_pressure_kPa,
+    double mean_solar_flux_Wpm2,
+    double altitude_m,
+    double mean_temp_C,
+    double temp_var_C,
+    double annual_precip_mm,
     bint exoplanet
 ):
     if isnan(gravity_m_per_s2 + mean_surface_pressure_kPa + mean_solar_flux_Wpm2 + altitude_m + mean_temp_C + temp_var_C + annual_precip_mm):
         return UNKNOWN
-    cdef float water_supercritical_pressure = 22000 # kPa
-    cdef float pyroxene_melting_point_C = 1000
-    cdef float quartz_boiling_boint_C = 2230
+    cdef double water_supercritical_pressure = 22000 # kPa
+    cdef double pyroxene_melting_point_C = 1000
+    cdef double quartz_boiling_boint_C = 2230
     ### cryogen params based on liquid nitrogen ( https://www.engineeringtoolbox.com/nitrogen-d_1421.html )
     #### alternative cryogens: ammonia, methane; both would oxidize in presense of oxygen, so not as interesting
     #### (oxygen is a pretty common element)
-    cdef float cryo_crit_temp = -147 # C
-    cdef float cryo_crit_pressure = 3400 # kPa
-    cdef float cryo_triple_temp = -210 # C
-    cdef float goldilocks_min_atmosphere = 4.0 # kPa, water must be liquid up to 30 C for earth-like geography
-    cdef float goldilocks_max_atmosphere = 3350 # kPa, no super-critical gasses allowed for earth-like geography
-    # cdef float cryo_triple_pressure = 12.5 # kPa
-    cdef float vapor_pressure_kPa = 0.61094 * exp((17.625 * (mean_temp_C + temp_var_C)) / ((mean_temp_C + temp_var_C) + 243.04)) # Magnus formula
+    cdef double cryo_crit_temp = -147 # C
+    cdef double cryo_crit_pressure = 3400 # kPa
+    cdef double cryo_triple_temp = -210 # C
+    cdef double goldilocks_min_atmosphere = 4.0 # kPa, water must be liquid up to 30 C for earth-like geography
+    cdef double goldilocks_max_atmosphere = 3350 # kPa, no super-critical gasses allowed for earth-like geography
+    # cdef double cryo_triple_pressure = 12.5 # kPa
+    cdef double vapor_pressure_kPa = 0.61094 * exp((17.625 * (mean_temp_C + temp_var_C)) / ((mean_temp_C + temp_var_C) + 243.04)) # Magnus formula
     cdef above_sealevel_m = altitude_m
     if above_sealevel_m < 0:
         above_sealevel_m = 0
-    cdef float pressure_kPa = pressure_at_altitude(gravity_m_per_s2, mean_surface_pressure_kPa, mean_temp_C, above_sealevel_m)
-    cdef float boiling_point_C = boiling_point(pressure_kPa)
+    cdef double pressure_kPa = pressure_at_altitude(gravity_m_per_s2, mean_surface_pressure_kPa, mean_temp_C, above_sealevel_m)
+    cdef double boiling_point_C = boiling_point(pressure_kPa)
     if exoplanet: ## try to detect extreme conditions of a non-goldilocks-zone planet
         if mean_temp_C > quartz_boiling_boint_C:
             ## at least as hot as a red dwarf XD
@@ -486,13 +449,13 @@ cpdef _cython_classify_biome_on_planet_surface(
     )
     
 cpdef unsigned char classify_biome_on_planet_surface(
-    float gravity_m_per_s2,
-    float mean_surface_pressure_kPa,
-    float mean_solar_flux_Wpm2,
-    float altitude_m,
-    float mean_temp_C,
-    float temp_var_C,
-    float annual_precip_mm,
+    double gravity_m_per_s2,
+    double mean_surface_pressure_kPa,
+    double mean_solar_flux_Wpm2,
+    double altitude_m,
+    double mean_temp_C,
+    double temp_var_C,
+    double annual_precip_mm,
     bint exoplanet
 ):
     """
@@ -513,45 +476,6 @@ Parameters:
 Returns:
     (uint8) returns the DrPlantabyte Biome code for the predicted biome, or 0 if no biome prediction could be made
 
-Biome Code Reference:
-    Code   Biome
-       0   UNKNOWN
-       1   WETLAND
-       2   JUNGLE
-       3   SEASONAL_FOREST
-       4   NEEDLELEAF_FOREST
-       5   GRASSLAND
-       6   DESERT_SHRUBLAND
-       7   TUNDRA
-       8   BARREN
-       9   SAND_SEA
-   10-15   -- (reserved for future use)
-      16   DEEP_OCEAN
-      17   FRESHWATER
-      18   SEA_FOREST
-      19   TROPICAL_REEF
-      20   ROCKY_SHALLOWS
-      21   SHALLOW_OCEAN
-      22   ICE_SHEET
-      23   BOILING_SEA
-   24-31   -- (reserved for future use)
-      32   FARMLAND
-      33   URBAN
-      34   RUINS
-   35-63   -- (reserved for future use)
-      64   MOONSCAPE
-      65   MAGMA_SEA
-      66   CRYOGEN_SEA
-      67   GAS_GIANT
-      68   STAR
-      69   NEUTRON_STAR
-      70   EVENT_HORIZON
-  71-111   -- (not used)
-     112   BIOLUMINESCENT
-     113   DEAD
-     114   MAGIC_GARDEN
-     115   ELEMENTAL_CHAOS
-     116   OOZE
     """
     ## bypass to prevent name redirect issues
     return _cython_classify_biome_on_planet_surface(
@@ -566,46 +490,46 @@ Biome Code Reference:
     )
 
 
-cdef float boiling_point(float pressure_kPa):
-    cdef float ln_mbar = log(pressure_kPa*10)
-    cdef float x = ln_mbar
-    cdef float x2 = x*ln_mbar
-    cdef float x3 = x2*ln_mbar
-    cdef float lp = 0.051769*x3 + 0.65545*x2 + 10.387*x - 10.619
-    cdef float hp = 0.47092*x3 - 8.2481*x2 + 75.520*x - 183.98
+cdef double boiling_point(double pressure_kPa):
+    cdef double ln_mbar = log(pressure_kPa*10)
+    cdef double x = ln_mbar
+    cdef double x2 = x*ln_mbar
+    cdef double x3 = x2*ln_mbar
+    cdef double lp = 0.051769*x3 + 0.65545*x2 + 10.387*x - 10.619
+    cdef double hp = 0.47092*x3 - 8.2481*x2 + 75.520*x - 183.98
     if pressure_kPa < 101.3:
         return lp
     else:
         return hp
 
-cpdef float pressure_at_altitude(float gravity_m_per_s2, float mean_surface_pressure_kPa, float mean_temp_C, float above_sealevel_m):
-    cdef float K = mean_temp_C + 273.15
-    cdef float R = 8.314510  # j/K/mole
-    cdef float air_molar_mass = 0.02897  # kg/mol
-    cdef float pressure_kPa = mean_surface_pressure_kPa * exp(-(air_molar_mass * gravity_m_per_s2 * above_sealevel_m)/(R*K))
+cpdef double pressure_at_altitude(double gravity_m_per_s2, double mean_surface_pressure_kPa, double mean_temp_C, double above_sealevel_m):
+    cdef double K = mean_temp_C + 273.15
+    cdef double R = 8.314510  # j/K/mole
+    cdef double air_molar_mass = 0.02897  # kg/mol
+    cdef double pressure_kPa = mean_surface_pressure_kPa * exp(-(air_molar_mass * gravity_m_per_s2 * above_sealevel_m)/(R*K))
     return pressure_kPa
 
-cpdef float clip(float x, float xmin, float xmax):
+cpdef double clip(double x, double xmin, double xmax):
     if x < xmin:
         return xmin
     if x > xmax:
         return xmax
     return x
 
-cpdef float rescale(float x, float xmin, float xmax):
+cpdef double rescale(double x, double xmin, double xmax):
     return (x - xmin) / (xmax - xmin)
 
-cdef float dist4f(float a1, float b1, float c1, float d1, float a2, float b2, float c2, float d2):
-    cdef float da = a2-a1
-    cdef float db = b2-b1
-    cdef float dc = c2-c1
-    cdef float dd = d2-d1
+cdef double dist4fd(float a1, float b1, float c1, float d1, double a2, double b2, double c2, double d2):
+    cdef double da = a2-a1
+    cdef double db = b2-b1
+    cdef double dc = c2-c1
+    cdef double dd = d2-d1
     return sqrt(da*da + db*db + dc*dc + dd*dd)
 
 
 cpdef classify_planet_biomes(
-    float gravity_m_per_s2,
-    float mean_surface_pressure_kPa,
+    double gravity_m_per_s2,
+    double mean_surface_pressure_kPa,
     float[:] mean_solar_flux_Wpm2,
     float[:] altitude_m,
     float[:] mean_temp_C,
@@ -633,45 +557,6 @@ Parameters:
 Returns:
     (numpy.ndarray with dtype=uint8) returns the DrPlantabyte Biome codes for the predicted biomes
 
-Biome Code Reference:
-    Code   Biome
-       0   UNKNOWN
-       1   WETLAND
-       2   JUNGLE
-       3   SEASONAL_FOREST
-       4   NEEDLELEAF_FOREST
-       5   GRASSLAND
-       6   DESERT_SHRUBLAND
-       7   TUNDRA
-       8   BARREN
-       9   SAND_SEA
-   10-15   -- (reserved for future use)
-      16   DEEP_OCEAN
-      17   FRESHWATER
-      18   SEA_FOREST
-      19   TROPICAL_REEF
-      20   ROCKY_SHALLOWS
-      21   SHALLOW_OCEAN
-      22   ICE_SHEET
-      23   BOILING_SEA
-   24-31   -- (reserved for future use)
-      32   FARMLAND
-      33   URBAN
-      34   RUINS
-   35-63   -- (reserved for future use)
-      64   MOONSCAPE
-      65   MAGMA_SEA
-      66   CRYOGEN_SEA
-      67   GAS_GIANT
-      68   STAR
-      69   NEUTRON_STAR
-      70   EVENT_HORIZON
-  71-111   -- (not used)
-     112   BIOLUMINESCENT
-     113   DEAD
-     114   MAGIC_GARDEN
-     115   ELEMENTAL_CHAOS
-     116   OOZE
     """
     # for use with Numpy arrays
     assert tuple(mean_solar_flux_Wpm2.shape) == tuple(altitude_m.shape)
@@ -698,4 +583,4 @@ Biome Code Reference:
     return result
 
 cdef extern from "math.h":
-    bint isnan(float x)
+    bint isnan(double x)
