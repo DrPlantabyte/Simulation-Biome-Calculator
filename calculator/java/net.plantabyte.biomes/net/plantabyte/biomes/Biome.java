@@ -37,27 +37,77 @@ public enum Biome {
 	ELEMENTAL_CHAOS(115, "elemental chaos", "elemental chaos"),
 	OOZE(116, "ooze", "giant slime");
 	//
-	public final byte code;
+	public final byte biomeCode;
 	public final String commonName;
 	public final String technicalName;
 	
 	Biome(int biomeCode, String commonName, String technicalName){
-		this.code = (byte)biomeCode;
+		this.biomeCode = (byte)biomeCode;
 		this.commonName = commonName;
 		this.technicalName = technicalName;
 	}
 	
-	public byte getCode(){
-		return code;
+	
+	public static Biome[][][] convertByteArray(byte[][][] byteArray){
+		var out = new Biome[byteArray.length][][];
+		for(int i = 0; i < out.length; ++i){
+			out[i] = convertByteArray(byteArray[i]);
+		}
+		return out;
+	}
+	public static Biome[][] convertByteArray(byte[][] byteArray){
+		var out = new Biome[byteArray.length][];
+		for(int i = 0; i < out.length; ++i){
+			out[i] = convertByteArray(byteArray[i]);
+		}
+		return out;
+	}
+	public static Biome[] convertByteArray(byte[] byteArray){
+		var out = new Biome[byteArray.length];
+		for(int i = 0; i < out.length; ++i){
+			out[i] = fromBiomeCode(byteArray[i]);
+		}
+		return out;
 	}
 	
-	public static Biome fromCode(byte biomeCode){
-		return _fromCode(biomeCode);
+	public static byte[][][] convertBiomeArray(Biome[][][] biomeArray){
+		var out = new byte[biomeArray.length][][];
+		for(int i = 0; i < out.length; ++i){
+			out[i] = convertBiomeArray(biomeArray[i]);
+		}
+		return out;
 	}
-	public static Biome fromCode(int biomeCode){
-		return _fromCode(biomeCode);
+	public static byte[][] convertBiomeArray(Biome[][] biomeArray){
+		var out = new byte[biomeArray.length][];
+		for(int i = 0; i < out.length; ++i){
+			out[i] = convertBiomeArray(biomeArray[i]);
+		}
+		return out;
 	}
-	private static Biome _fromCode(int biomeCode){
+	public static byte[] convertBiomeArray(Biome[] biomeArray){
+		var out = new byte[biomeArray.length];
+		for(int i = 0; i < out.length; ++i){
+			out[i] = toBiomeCode(biomeArray[i]);
+		}
+		return out;
+	}
+	
+	public String getCommonName(){ return commonName; }
+	public String getTechnicalName(){ return technicalName; }
+	
+	public static byte toBiomeCode(Biome b){ return b.biomeCode; }
+	
+	public byte getBiomeCode(){
+		return biomeCode;
+	}
+	
+	public static Biome fromBiomeCode(byte biomeCode){
+		return _fromBiomeCode(biomeCode);
+	}
+	public static Biome fromBiomeCode(int biomeCode){
+		return _fromBiomeCode(biomeCode);
+	}
+	private static Biome _fromBiomeCode(int biomeCode){
 		return switch(biomeCode) {
 			case 0 -> UNKNOWN;
 			case 1 -> WETLAND;
