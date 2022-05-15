@@ -190,9 +190,10 @@ public class BiomeCalculator {
 		double photic_zone_min_solar_flux_Wpm2 = 35;
 		double wave_disruption_depth_m = -6; // corals, seagrasses, kelps, etc cannot grow above this depth
 		double epsilon_water = 0.013333;  // Absorption per meter (150m == 1% transmission (0.01 = 10^(-epsilon*150))
-		double benthic_solar_flux = mean_solar_flux_Wpm2
-				* Math.pow(10, epsilon_water * altitude_m); // <- note: altitude is negative here
-		double boiling_point_C = boiling_point(pressure_kPa)
+		double benthic_solar_flux = mean_solar_flux_Wpm2 * Math.pow(10,
+				epsilon_water * altitude_m
+		); // <- note: altitude is negative here
+		double boiling_point_C = boiling_point(pressure_kPa);
 		//// terrestrial biomes
 		if(altitude_m > 0) {
 			if(annual_precip_mm > max_rain_limit_mm) {
@@ -222,37 +223,93 @@ public class BiomeCalculator {
 				biome_code = Biome.GRASSLAND;
 			}
 		} else {
-				//// marine biomes
-		if(benthic_solar_flux >= photic_zone_min_solar_flux_Wpm2) {
-			// sea floor in photic zone
-			if(mean_temp_C > 5 && mean_temp_C < 20
-					&& altitude_m < wave_disruption_depth_m) {
-				biome_code = Biome.SEA_FOREST;
-			} else if(mean_temp_C >= 20 && mean_temp_C < 30
-						&& altitude_m < wave_disruption_depth_m) {
-				biome_code = Biome.TROPICAL_REEF;
+			//// marine biomes
+			if(benthic_solar_flux >= photic_zone_min_solar_flux_Wpm2) {
+				// sea floor in photic zone
+				if(mean_temp_C > 5 && mean_temp_C < 20 && altitude_m < wave_disruption_depth_m) {
+					biome_code = Biome.SEA_FOREST;
+				} else
+					if(mean_temp_C >= 20 && mean_temp_C < 30 && altitude_m < wave_disruption_depth_m) {
+						biome_code = Biome.TROPICAL_REEF;
+					} else {
+						biome_code = Biome.ROCKY_SHALLOWS;
+					}
+			} else
+				if(altitude_m > -200) {
+					biome_code = Biome.SHALLOW_OCEAN;
 				} else {
-					biome_code = Biome.ROCKY_SHALLOWS;
+					biome_code = Biome.DEEP_OCEAN;
 				}
-			} else if(altitude_m > -200) {
-				biome_code = Biome.SHALLOW_OCEAN;
-			} else {
-				biome_code = Biome.DEEP_OCEAN;
-			}
 		}
 		//// extreme biomes
-		if altitude_m > 0:
-		if annual_precip_mm<min_rain_limit_mm:
-		if mean_temp_C > 15:
-		biome_code = SAND_SEA} else if(mean_temp_C <=15:
-		biome_code = BARREN if mean_temp_C >= boiling_point_C:
-		biome_code = MOONSCAPE
-    else:
-		if mean_temp_C > boiling_point_C:
-		biome_code = BOILING_SEA
-		if(mean_temp_C < boiling_point_C) and(mean_temp_C + temp_var_C) < 0:
-		biome_code = ICE_SHEET
+		if(altitude_m > 0) {
+			if(annual_precip_mm < min_rain_limit_mm) {
+				if(mean_temp_C > 15) {
+					biome_code = Biome.SAND_SEA;
+				} else
+					if(mean_temp_C <= 15) {
+						biome_code = Biome.BARREN;
+					}
+			}
+			if(mean_temp_C >= boiling_point_C) {
+				biome_code = Biome.MOONSCAPE;
+			}
+		} else {
+			if(mean_temp_C >= boiling_point_C) {
+				biome_code = Biome.BOILING_SEA;
+			}
+			if((mean_temp_C < boiling_point_C) && (mean_temp_C + temp_var_C) < 0) {
+				biome_code = Biome.ICE_SHEET;
+			}
+		}
 		//// Done!
-		return biome_code
+		return biome_code;
+	}
+	
+	static double dist4fd(float a1, float b1, float c1, float d1, double a2, double b2, double c2, double d2){
+		double da = a2-a1;
+		double db = b2-b1;
+		double dc = c2-c1;
+		double dd = d2-d1;
+		return Math.sqrt(da*da + db*db + dc*dc + dd*dd);
+	}
+	
+	static double rescale(double x, double xmin, double xmax) {
+		return (x - xmin) / (xmax - xmin);
+	}
+	
+	static double boiling_point(double pressure_kPa) {
+		double ln_mbar = Math.log(pressure_kPa * 10);
+		double x = ln_mbar;
+		double x2 = x * ln_mbar;
+		double x3 = x2 * ln_mbar;
+		double lp = 0.051769 * x3 + 0.65545 * x2 + 10.387 * x - 10.619;
+		double hp = 0.47092 * x3 - 8.2481 * x2 + 75.520 * x - 183.98;
+		if(pressure_kPa< 101.3){
+			return lp;
+		}else{
+			return hp;
+		}
+	}
+	
+	public double pressureAtDryAltitude(double altitude_m, double mean_temp_C) {
+		double K = mean_temp_C + 273.15;
+		double R = 8.314510;  // j/K/mole
+		double air_molar_mass = 0.02897;  // kg/mol
+		double gravity_m_per_s2 = gravity(this.planet_mass_kg, this.planet_mean_radius_km);
+		double pressure_kPa = mean_surface_pressure_kPa * Math.exp(-(air_molar_mass * gravity_m_per_s2 * altitude_m)/(R*K));
+		return pressure_kPa;
+	}
+	
+	static double gravity(final double mass_kg, final double distance_km) {
+		final double G = 6.6743015e-11; // N m2/kg2
+		double distance_m = 1000. * distance_km;
+		return G * (mass_kg) / (distance_m*distance_m);
+	}
+	
+	static double clip(double x, double xmin, double xmax) {
+		if(x < xmin) return xmin;
+		if(x > xmax) return xmax;
+		return x;
 	}
 }

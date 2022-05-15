@@ -13,7 +13,7 @@ def main():
 	PATCH_SOLAR_FLUX = False
 	##
 	data_dir = 'data'
-	subsamp = 100
+	subsamp = 10
 	##
 	gravity_m_per_s2 = 9.81
 	mean_surface_pressure_kPa = 101.3
@@ -43,16 +43,22 @@ def main():
 		mean_solar_flux_Wpm2 = mean_solar_flux_Wpm2 / pi_over_2 * two_over_pi
 	##
 	data_table = DataFrame.from_dict({
+		'gravity_m_per_s2':[gravity_m_per_s2]*len(annual_precip_mm.ravel()),
+		'mean_surface_pressure_kPa':[mean_surface_pressure_kPa]*len(annual_precip_mm.ravel()),
+		'toa_solar_flux_Wpm2':[toa_solar_flux_Wpm2]*len(annual_precip_mm.ravel()),
 		'mean_solar_flux_Wpm2':mean_solar_flux_Wpm2.ravel(),
 		'altitude_m':altitude_m.ravel(),
 		'mean_temp_C':mean_temp_C.ravel(),
 		'temp_var_C':temp_var_C.ravel(),
 		'annual_precip_mm':annual_precip_mm.ravel(),
+		'exoplanet':[exoplanet]*len(annual_precip_mm.ravel()),
 		'biome':calculated_biomes.ravel(),
 	})
 	data_table.dropna(inplace=True)
 	print(data_table)
-	data_table.to_csv(path.join(data_dir, "Earth_ref_table.csv"))
+	fpath = path.join(data_dir, "Earth_ref_table.csv")
+	data_table.to_csv(fpath)
+	gzip_file(fpath)
 	print('...Done!')
 
 
@@ -83,6 +89,14 @@ def zunpickle(filepath):
 			return pickle.load(zin)
 	else:
 		raise FileNotFoundError("File '%s' does not exist" % path.abspath(filepath))
+
+def gzip_file(filepath):
+	out_file = str(filepath)+'.gz'
+	print('Compressing %s to %s...' % (filepath, out_file), end='')
+	with gzip.open(out_file, 'wb') as fout:
+		with open(filepath, 'rb') as fin:
+			fout.write(fin.read())
+	print('...done')
 ##########
 if __name__ == '__main__':
 	main()
