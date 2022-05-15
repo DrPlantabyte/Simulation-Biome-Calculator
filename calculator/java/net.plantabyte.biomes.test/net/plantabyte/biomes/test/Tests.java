@@ -79,6 +79,8 @@ public class Tests {
 	}
 	
 	public static void testClassifyBiomeOnPlanet() throws IOException {
+		// also tests classifyBiomeOnPlanetSurface(...)
+		// since classifyBiomeOnPlanet(...) forwards to that function
 		var table = unzipCSV("/resources/planet_refs.csv.gz");
 		var header = Arrays.asList(table[0]);
 		int iMass = header.indexOf("planet_mass_kg");

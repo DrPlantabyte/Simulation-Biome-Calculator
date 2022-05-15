@@ -271,8 +271,131 @@ public class BiomeCalculator {
 			double latitude,
 			double longitude
 			){
-		// TODO
-		return Biome.UNKNOWN;
+		double pi = Math.PI;
+		double two_over_pi = 0.5 * pi;
+		double deg2Rad = pi / 180;
+		double radius_m = (planet_mean_radius_km * 1000) + altitude_m;
+		double above_sealevel_m = altitude_m;
+		if(above_sealevel_m < 0) {
+			above_sealevel_m = 0;
+		}
+		double pressure_kPa = pressureAtDryAltitude(mean_temp_C, above_sealevel_m);
+		double epsilon_air = 3.46391e-5; // Absorption per kPa (1360 = 1371 * 10^(-eps * 101) );
+		double max_flux = toa_solar_flux_Wpm2 * Math.pow(10, -epsilon_air * pressure_kPa);
+		double mean_solar_flux_Wpm2 = 0;
+		if(tidal_lock) {
+			mean_solar_flux_Wpm2 =
+					max_flux * two_over_pi * Math.cos(latitude) * clip(Math.cos(longitude), 0, 1);
+		} else {
+			mean_solar_flux_Wpm2 = max_flux * two_over_pi * 0.5 * (
+					clip(Math.cos(deg2Rad * (latitude - axis_tilt_deg)), 0, 1) + clip(
+							Math.cos(deg2Rad * (latitude + axis_tilt_deg)), 0, 1));
+		}
+    //// if doing expoplanet calcualtion, first check astronomical biomes
+				double min_neutron_star_density_Tpm3 = 1e14; // tons per cubic meter (aka g/cc)
+		double max_neutron_star_density_Tpm3 = 2e16; // tons per cubic meter (aka g/cc)
+		double planet_volume_m3 = 4.0/3.0*pi*radius_m*radius_m*radius_m;
+		double planet_density_Tpm3 = planet_mass_kg / 1000. / planet_volume_m3;
+		double red_dwarf_min_mass_kg = 1.2819e29;
+		if(exoplanet) { //// try to detect extreme conditions of a non-goldilocks-zone planet
+			if(planet_density_Tpm3 > max_neutron_star_density_Tpm3){
+				////BLACK HOLE ! 
+				return Biome.EVENT_HORIZON;
+			}
+			if(planet_density_Tpm3 >= min_neutron_star_density_Tpm3){
+				////neutron star ! 
+				return Biome.NEUTRON_STAR;}
+			if(planet_mass_kg >= red_dwarf_min_mass_kg) {
+				////big enough to spontaneously start thermonuclear fusion and become a star 
+				return Biome.STAR;
+			}
+		}
+		return classifyBiomeOnPlanetSurface(
+				mean_solar_flux_Wpm2,
+				altitude_m,
+				mean_temp_C,
+				temp_var_C,
+				annual_precip_mm
+		);
+	}
+	
+	public Biome classifyBiomeOnPlanetSurface(
+			double mean_solar_flux_Wpm2,
+			double altitude_m,
+			double mean_temp_C,
+			double temp_var_C,
+			double annual_precip_mm
+	){
+		double gravity_m_per_s2 = gravity(this.planet_mass_kg, this.planet_mean_radius_km + (0.001*altitude_m));
+		if(Double.isNaN(gravity_m_per_s2 + mean_surface_pressure_kPa + mean_solar_flux_Wpm2 + altitude_m + mean_temp_C + temp_var_C + annual_precip_mm)){
+			return Biome.UNKNOWN;
+		}
+		double water_supercritical_pressure = 22000; // kPa;
+		double pyroxene_melting_point_C = 1000;
+		double quartz_boiling_boint_C = 2230;
+		////// cryogen params based on liquid nitrogen ( https://www.engineeringtoolbox.com/nitrogen-d_1421.html );
+		//////// alternative cryogens: ammonia, methane; both would oxidize in presense of oxygen, so not as interesting;
+		//////// (oxygen is a pretty common element);
+		double cryo_crit_temp = -147; // C;
+		double cryo_crit_pressure = 3400; // kPa;
+		double cryo_triple_temp = -210; // C;
+		double goldilocks_min_atmosphere = 4.0; // kPa, water must be liquid up to 30 C for earth-like geography;
+		double goldilocks_max_atmosphere = 3350; // kPa, no super-critical gasses allowed for earth-like geography;
+		// cryo_triple_pressure = 12.5 // kPa;
+		double vapor_pressure_kPa = 0.61094 * Math.exp((17.625 * (mean_temp_C + temp_var_C)) / ((mean_temp_C + temp_var_C) + 243.04)); // Magnus formula;
+		double above_sealevel_m = altitude_m;
+		if(above_sealevel_m < 0){
+			above_sealevel_m = 0;
+		}
+		double pressure_kPa = pressureAtDryAltitude(mean_temp_C, above_sealevel_m);
+		double boiling_point_C = boiling_point(pressure_kPa);
+		if(exoplanet){ //// try to detect extreme conditions of a non-goldilocks-zone planet;
+			if(mean_temp_C > quartz_boiling_boint_C){
+				//// at least as hot as a red dwarf XD;
+				return Biome.STAR;
+			}
+			if(pressure_kPa > water_supercritical_pressure){
+				////// defining a gas giant is a bit hand-wavey as of 2022;
+				return Biome.GAS_GIANT;
+			}
+			if(mean_temp_C > pyroxene_melting_point_C){
+				if(altitude_m <= 0){
+					return Biome.MAGMA_SEA;
+				} else {
+					return Biome.MOONSCAPE;
+				}
+			}
+			if(pressure_kPa < vapor_pressure_kPa
+					|| (mean_temp_C - temp_var_C) > boiling_point_C){
+				////// not enough atmosphere to be anything other than a naked rock!;
+				return Biome.MOONSCAPE;
+			}
+			if ((mean_temp_C > cryo_triple_temp) && (mean_temp_C < cryo_crit_temp)
+					&& (pressure_kPa < cryo_crit_pressure)
+					&& ( pressure_kPa > (1.6298e9*Math.exp(0.08898*mean_temp_C)))){
+				//// liquid nitrogen planet! (like pluto);
+				if(altitude_m <= 0){
+					return Biome.CRYOGEN_SEA;
+				} else if(annual_precip_mm > 0){
+					return Biome.ICE_SHEET;
+				} else {
+					return Biome.MOONSCAPE;
+				}
+			}
+			if(mean_surface_pressure_kPa < goldilocks_min_atmosphere
+					|| mean_surface_pressure_kPa > goldilocks_max_atmosphere){
+				return Biome.MOONSCAPE;
+			}
+		}
+		//// then check normal biomes;
+		return classifyBiome(
+			mean_solar_flux_Wpm2,
+			pressure_kPa,
+			altitude_m,
+			mean_temp_C,
+			temp_var_C,
+			annual_precip_mm
+		);
 	}
 	
 	private static double dist4fd(float a1, float b1, float c1, float d1, double a2, double b2, double c2, double d2){
