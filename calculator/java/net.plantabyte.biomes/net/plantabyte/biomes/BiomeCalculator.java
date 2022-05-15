@@ -228,28 +228,25 @@ public class BiomeCalculator {
 				// sea floor in photic zone
 				if(mean_temp_C > 5 && mean_temp_C < 20 && altitude_m < wave_disruption_depth_m) {
 					biome_code = Biome.SEA_FOREST;
-				} else
-					if(mean_temp_C >= 20 && mean_temp_C < 30 && altitude_m < wave_disruption_depth_m) {
+				} else if(mean_temp_C >= 20 && mean_temp_C < 30 && altitude_m < wave_disruption_depth_m) {
 						biome_code = Biome.TROPICAL_REEF;
 					} else {
 						biome_code = Biome.ROCKY_SHALLOWS;
 					}
-			} else
-				if(altitude_m > -200) {
-					biome_code = Biome.SHALLOW_OCEAN;
-				} else {
-					biome_code = Biome.DEEP_OCEAN;
-				}
+			} else if(altitude_m > -200) {
+				biome_code = Biome.SHALLOW_OCEAN;
+			} else {
+				biome_code = Biome.DEEP_OCEAN;
+			}
 		}
 		//// extreme biomes
 		if(altitude_m > 0) {
 			if(annual_precip_mm < min_rain_limit_mm) {
 				if(mean_temp_C > 15) {
 					biome_code = Biome.SAND_SEA;
-				} else
-					if(mean_temp_C <= 15) {
-						biome_code = Biome.BARREN;
-					}
+				} else if(mean_temp_C <= 15) {
+					biome_code = Biome.BARREN;
+				}
 			}
 			if(mean_temp_C >= boiling_point_C) {
 				biome_code = Biome.MOONSCAPE;
@@ -258,9 +255,9 @@ public class BiomeCalculator {
 			if(mean_temp_C >= boiling_point_C) {
 				biome_code = Biome.BOILING_SEA;
 			}
-			if((mean_temp_C < boiling_point_C) && (mean_temp_C + temp_var_C) < 0) {
-				biome_code = Biome.ICE_SHEET;
-			}
+		}
+		if((mean_temp_C < boiling_point_C) && (mean_temp_C + temp_var_C) < 0) {
+			biome_code = Biome.ICE_SHEET;
 		}
 		//// Done!
 		return biome_code;

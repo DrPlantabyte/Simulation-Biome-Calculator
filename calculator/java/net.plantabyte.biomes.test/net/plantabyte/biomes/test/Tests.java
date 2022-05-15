@@ -40,7 +40,7 @@ public class Tests {
 		});
 		System.exit(allGood.get() ? 0 : 1);
 	}
-	public static void testBiomes() throws IOException {
+	public static void testClassifyBiomeWithEarthRef() throws IOException {
 		var table = unzipCSV("/resources/Earth_ref_table.csv.gz");
 		var header = Arrays.asList(table[0]);
 		int iGravity = header.indexOf("gravity_m_per_s2");
