@@ -1,0 +1,53 @@
+import numpy, biomecalculator, pandas, gzip
+deg2rad = numpy.pi/180.
+rows=[]
+masses = [0.33e24, 2.9e24, 6.0e24, 0.65e24, 1900e24, 570e24, 87e24, 100e24, 0.0131e24]
+radii = [2.4e3, 6.1e3, 6.4e3, 3.4e3, 70e3, 58e3, 25e3, 25e3, 1.151e3]
+au = [0.39, 0.72, 1, 1.52, 5.2, 9.54, 19.2, 30.06, 40]
+tilts = [0.03, 2.6, 23, 6.7, 25, 3.1, 27, 82, 28, 57]
+tidal_locks = [True, False, False, False, False, False, False, False, False]
+pressures = [1e-14, 9.3e3, 101.3, 0.405, 1e6, 1e6, 1e6, 1e6, 0.0013]
+temperatures = [167, 464, 15, -65, -110, -140, -195, -200, -225]
+precipitations = [0, 0, 1000, 0, 0, 0, 0, 0, 10]
+for p in range(0,9):
+ planet_mass_kg = masses[p]
+ planet_mean_radius_km = radii[p]
+ toa_solar_flux_Wpm2 = 1373 / (au[p]*au[p])
+ axis_tilt_deg = tilts[p]
+ tidal_lock = tidal_locks[p]
+ mean_surface_pressure_kPa = pressures[p]
+ mean_temp_C = temperatures[p]
+ temp_var_C = 0
+ if p == 2:
+  temp_var_C == 10
+ annual_precip_mm = precipitations[p]
+ exoplanet = True
+ for latitude in range(-90, 90, 10):
+  for longitude in range(-180, 180, 10):
+   if p == 0:
+    mean_temp_C = (850+180) * numpy.cos(latitude*deg2rad/2) * numpy.cos(longitude*deg2rad/2) - 180
+   for altitude_m in range(-999,2999,200):
+    b = biomecalculator.classify_biome_on_planet(
+planet_mass_kg,
+planet_mean_radius_km,
+toa_solar_flux_Wpm2,
+axis_tilt_deg,
+tidal_lock,
+mean_surface_pressure_kPa,
+altitude_m,
+mean_temp_C,
+temp_var_C,
+annual_precip_mm,
+latitude,
+longitude,
+exoplanet,
+    )
+    rows.append([planet_mass_kg, planet_mean_radius_km, toa_solar_flux_Wpm2, axis_tilt_deg, tidal_lock, mean_surface_pressure_kPa, altitude_m, mean_temp_C, temp_var_C, annual_precip_mm, latitude, longitude, exoplanet, b.value])
+
+df = pandas.DataFrame(rows, columns=['planet_mass_kg', 'planet_mean_radius_km', 'toa_solar_flux_Wpm2', 'axis_tilt_deg', 'tidal_lock', 'mean_surface_pressure_kPa', 'altitude_m', 'mean_temp_C', 'temp_var_C', 'annual_precip_mm', 'latitude', 'longitude', 'exoplanet', 'biome'])
+fpath = 'research/out/planet_refs.csv'
+df.to_csv(fpath)
+with gzip.open(fpath+'.gz', 'wb') as fout:
+ with open(fpath, 'rb') as fin:
+  fout.write(fin.read())
+

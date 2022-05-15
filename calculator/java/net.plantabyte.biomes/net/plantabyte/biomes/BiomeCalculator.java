@@ -263,7 +263,19 @@ public class BiomeCalculator {
 		return biome_code;
 	}
 	
-	static double dist4fd(float a1, float b1, float c1, float d1, double a2, double b2, double c2, double d2){
+	public Biome classifyBiomeOnPlanet(
+			double altitude_m,
+			double mean_temp_C,
+			double temp_var_C,
+			double annual_precip_mm,
+			double latitude,
+			double longitude
+			){
+		// TODO
+		return Biome.UNKNOWN;
+	}
+	
+	private static double dist4fd(float a1, float b1, float c1, float d1, double a2, double b2, double c2, double d2){
 		double da = a2-a1;
 		double db = b2-b1;
 		double dc = c2-c1;
@@ -271,11 +283,11 @@ public class BiomeCalculator {
 		return Math.sqrt(da*da + db*db + dc*dc + dd*dd);
 	}
 	
-	static double rescale(double x, double xmin, double xmax) {
+	private static double rescale(double x, double xmin, double xmax) {
 		return (x - xmin) / (xmax - xmin);
 	}
 	
-	static double boiling_point(double pressure_kPa) {
+	private static double boiling_point(double pressure_kPa) {
 		double ln_mbar = Math.log(pressure_kPa * 10);
 		double x = ln_mbar;
 		double x2 = x * ln_mbar;
@@ -304,7 +316,7 @@ public class BiomeCalculator {
 		return G * (mass_kg) / (distance_m*distance_m);
 	}
 	
-	static double clip(double x, double xmin, double xmax) {
+	private static double clip(double x, double xmin, double xmax) {
 		if(x < xmin) return xmin;
 		if(x > xmax) return xmax;
 		return x;

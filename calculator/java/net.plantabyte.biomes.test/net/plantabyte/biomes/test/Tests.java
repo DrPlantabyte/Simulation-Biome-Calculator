@@ -20,6 +20,8 @@ public class Tests {
 	public static void main(String[] args){
 		final AtomicBoolean allGood = new AtomicBoolean(true);
 		Arrays.stream(Tests.class.getMethods()).filter(Tests::isTestMethod).forEach((Method test)->{
+			System.out.flush();
+			System.err.flush();
 			System.out.println(test.getName()+"...");
 			try {
 				test.invoke(null);
@@ -72,6 +74,53 @@ public class Tests {
 				throw new AssertionError(String.format("Error in row # %d: \n%s\n%s\n\t"
 						+ "Should have returned biome %s but instead returned biome %s",
 						row, Arrays.toString(table[0]), Arrays.toString(trow), tbiome.toString(), b.toString()));
+			}
+		}
+	}
+	
+	public static void testClassifyBiomeOnPlanet() throws IOException {
+		var table = unzipCSV("/resources/planet_refs.csv.gz");
+		var header = Arrays.asList(table[0]);
+		int iMass = header.indexOf("planet_mass_kg");
+		int iRad = header.indexOf("planet_mean_radius_km");
+		int iTOA = header.indexOf("toa_solar_flux_Wpm2");
+		int iTilt = header.indexOf("axis_tilt_deg");
+		int iLock = header.indexOf("tidal_lock");
+		int iPress = header.indexOf("mean_surface_pressure_kPa");
+		int iAlt = header.indexOf("altitude_m");
+		int iTemp = header.indexOf("mean_temp_C");
+		int iTempV = header.indexOf("temp_var_C");
+		int iPrecip = header.indexOf("annual_precip_mm");
+		int iLat = header.indexOf("latitude");
+		int iLon = header.indexOf("longitude");
+		int iExo = header.indexOf("exoplanet");
+		int iBiome = header.indexOf("biome");
+		for(int row = 1; row < table.length; ++row) {
+			var trow = table[row];
+			if(trow.length <= 1) continue; // blank row or comment
+			var bc = new BiomeCalculator(
+				Double.parseDouble(trow[iMass]),
+				Double.parseDouble(trow[iRad]),
+				Double.parseDouble(trow[iTilt]),
+				Boolean.parseBoolean(trow[iLock]),
+				Double.parseDouble(trow[iTOA]),
+				Double.parseDouble(trow[iPress]),
+				Boolean.parseBoolean(trow[iExo])
+			);
+			var biome = bc.classifyBiomeOnPlanet(
+					Double.parseDouble(trow[iAlt]),
+					Double.parseDouble(trow[iTemp]),
+					Double.parseDouble(trow[iTempV]),
+					Double.parseDouble(trow[iPrecip]),
+					Double.parseDouble(trow[iLat]),
+					Double.parseDouble(trow[iLon])
+			);
+			var correctBiome = Biome.fromBiomeCode(Byte.parseByte(trow[iBiome]));
+			if(!biome.equals(correctBiome)){
+				// mismatch
+				throw new AssertionError(String.format("Error in row # %d: \n%s\n%s\n\t"
+								+ "Should have returned biome %s but instead returned biome %s",
+						row, Arrays.toString(table[0]), Arrays.toString(trow), correctBiome.toString(), biome.toString()));
 			}
 		}
 	}
