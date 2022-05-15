@@ -1,7 +1,7 @@
 """
 Dr. Plantabyte's biome calculator for Earth and simulated exoplanets.
 
-This module provides several function for estimating the Dr. Plantabyte biome 
+This module provides several functions for estimating the Dr. Plantabyte biome
 code for a given Earthly or exoplanet environment. If you have Cython 
 installed, it will use Cython-optimized calculations to improve performance.
 

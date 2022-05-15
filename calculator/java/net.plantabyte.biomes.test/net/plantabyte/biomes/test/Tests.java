@@ -11,7 +11,9 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
@@ -125,6 +127,38 @@ public class Tests {
 						row, Arrays.toString(table[0]), Arrays.toString(trow), correctBiome.toString(), biome.toString()));
 			}
 		}
+	}
+	
+	public static void testAPI(){
+		final var EarthBC = new BiomeCalculator();
+		Consumer<HashMap<String,Double>> printBiome = (HashMap<String,Double> env)->System.out.println(EarthBC.classifyBiome(
+				env.get("mean_solar_flux_Wpm2"),
+				env.get("pressure_kPa"),
+				env.get("altitude_m"),
+				env.get("mean_temp_C"),
+				env.get("temp_var_C"),
+				env.get("annual_precip_mm")
+		));
+		
+		var Macapa_Brazil = new HashMap<String,Double>();
+		Macapa_Brazil.put("mean_solar_flux_Wpm2", 798.);
+		Macapa_Brazil.put("pressure_kPa", 101.3);
+		Macapa_Brazil.put("altitude_m", 20.);
+		Macapa_Brazil.put("mean_temp_C", 28.2);
+		Macapa_Brazil.put("temp_var_C", 3.2);
+		Macapa_Brazil.put("annual_precip_mm", 2200.);
+		printBiome.accept(Macapa_Brazil);
+		
+		var Fairbanks_Alaska = new HashMap<String,Double>();
+		Fairbanks_Alaska.put("mean_solar_flux_Wpm2", 356.);
+		Fairbanks_Alaska.put("pressure_kPa", 99.8);
+		Fairbanks_Alaska.put("altitude_m", 136.);
+		Fairbanks_Alaska.put("mean_temp_C", -2.0);
+		Fairbanks_Alaska.put("temp_var_C", 21.7);
+		Fairbanks_Alaska.put("annual_precip_mm", 296.);
+		printBiome.accept(Fairbanks_Alaska);
+		
+		
 	}
 	
 	private static boolean isTestMethod(Method m){
