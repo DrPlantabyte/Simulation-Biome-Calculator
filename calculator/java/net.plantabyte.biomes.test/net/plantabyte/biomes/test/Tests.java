@@ -161,6 +161,37 @@ public class Tests {
 		
 	}
 	
+	public static void testBiomePrintout(){
+		var sb = new StringBuilder();
+		sb.append("<table border=\"1\">\n");
+		sb.append("<tr><th>");
+		String[] cols = {"Code", "Biome Enum", "Technical Name", "Common Name"};
+		sb.append(join("</th><th>", cols));
+		sb.append("</th></tr>\n");
+		for(var b : Biome.values()){
+			sb.append("<tr><td>");
+			sb.append(join("</td><td>",
+					b.getBiomeCode(),
+					b.toString(),
+					b.getTechnicalName(),
+					b.getCommonName()
+			));
+			sb.append("</td></tr>\n");
+		}
+		sb.append("</table>\n");
+		System.out.println(sb);
+	}
+	private static String join(String joiner, Object... arr){
+		boolean notFirst = false;
+		var sb = new StringBuilder();
+		for(var o : arr){
+			if(notFirst) sb.append(joiner);
+			sb.append(String.valueOf(o));
+			notFirst = true;
+		}
+		return sb.toString();
+	}
+	
 	private static boolean isTestMethod(Method m){
 		return Modifier.isStatic(m.getModifiers())
 				&& m.getName().startsWith("test");
