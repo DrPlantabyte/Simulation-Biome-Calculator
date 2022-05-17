@@ -24,46 +24,50 @@ package net.plantabyte.biomes;
  <code>xxxx</code> = biome code within category</p>
  <p>The full list of biomes and corresponding biome number codes are as follows:<br>
  <table border="1">
- <tr><th> Code </th><th>Name             </th><th>Description                                       </th></tr>
- <tr><td>    0 </td><td>UNKNOWN          </td><td>Unclassifiable biome                              </td></tr>
- <tr><td colspan="3">  <i>Terrestrial Biomes</i>                                                    </td></tr>
- <tr><td>    1 </td><td>WETLAND          </td><td>Permanent wetland                                 </td></tr>
- <tr><td>    2 </td><td>JUNGLE           </td><td>Tropical rainforest                               </td></tr>
- <tr><td>    3 </td><td>SEASONAL_FOREST  </td><td>Temperate deciduous forest                        </td></tr>
- <tr><td>    4 </td><td>NEEDLELEAF_FOREST</td><td>Temperate evergreen forest                        </td></tr>
- <tr><td>    5 </td><td>GRASSLAND        </td><td>Plains, prairies, and savannas                    </td></tr>
- <tr><td>    6 </td><td>DESERT_SHRUBLAND </td><td>Dry shrublands and less extreme deserts           </td></tr>
- <tr><td>    7 </td><td>TUNDRA           </td><td>Seasonal grasslands where it is too cold for trees</td></tr>
- <tr><td>    8 </td><td>BARREN           </td><td>Exposed rocks with little to no macroscopic life  </td></tr>
- <tr><td>    9 </td><td>SAND_SEA         </td><td>Sand dunes with little to no macroscopic life     </td></tr>
- <tr><td colspan="3">  <i>Aquatic Biomes</i>                                                        </td></tr>
- <tr><td>   17 </td><td>FRESHWATER       </td><td>Lakes and rivers                                  </td></tr>
- <tr><td>   18 </td><td>SEA_FOREST       </td><td>Seagrass meadows and seaweed forests              </td></tr>
- <tr><td>   19 </td><td>TROPICAL_REEF    </td><td>Coral reefs                                       </td></tr>
- <tr><td>   20 </td><td>ROCKY_SHALLOWS   </td><td>Low productivity shallow marine waters            </td></tr>
- <tr><td>   16 </td><td>DEEP_OCEAN       </td><td>Ocean                                             </td></tr>
- <tr><td>   21 </td><td>SHALLOW_OCEAN    </td><td>Shallow ocean regions where light reaches seabed  </td></tr>
- <tr><td>   22 </td><td>ICE_SHEET        </td><td>Frozen ocean or land covered in permanent ice     </td></tr>
- <tr><td>   23 </td><td>BOILING_SEA      </td><td>Water body so hot that it boils                   </td></tr>
- <tr><td colspan="3">  <i>Artificial Biomes</i>                                                     </td></tr>
- <tr><td>   32 </td><td>FARMLAND         </td><td>Cultivated land                                   </td></tr>
- <tr><td>   33 </td><td>URBAN            </td><td>Cities, streets, and other artificial structures  </td></tr>
- <tr><td>   34 </td><td>RUINS            </td><td>Abandoned urban areas being reclaimed by nature   </td></tr>
- <tr><td colspan="3">  <i>Astronomical "Biomes"</i>                                                 </td></tr>
- <tr><td>   64 </td><td>MOONSCAPE        </td><td>Lifeless dry dust and/or rock                     </td></tr>
- <tr><td>   65 </td><td>MAGMA_SEA        </td><td>Ocean of molten rock                              </td></tr>
- <tr><td>   66 </td><td>CRYOGEN_SEA      </td><td>Ocean of liquid cryogen (eg liquid nitrogen)      </td></tr>
- <tr><td>   67 </td><td>GAS_GIANT        </td><td>"Surface" of planet with extreme thick atmosphere </td></tr>
- <tr><td>   68 </td><td>STAR             </td><td>Surface of a star                                 </td></tr>
- <tr><td>   69 </td><td>NEUTRON_STAR     </td><td>Surface of a neutron star                         </td></tr>
- <tr><td>   70 </td><td>EVENT_HORIZON    </td><td>"Surface" of a black hole                         </td></tr>
- <tr><td colspan="3">  <i>Fantasy Biomes</i>                                                        </td></tr>
- <tr><td>  112 </td><td>BIOLUMINESCENT   </td><td>Permanently dark biome with bioluminescent flora  </td></tr>
- <tr><td>  113 </td><td>DEAD             </td><td>Dead (or undead) landscape                        </td></tr>
- <tr><td>  114 </td><td>MAGIC_GARDEN     </td><td>Magical paradise                                  </td></tr>
- <tr><td>  115 </td><td>ELEMENTAL_CHAOS  </td><td>Floating rocks, never-melt ice, dancing fire, etc.</td></tr>
- <tr><td>  116 </td><td>OOZE             </td><td>Living landscape, such as an ocean-sized amoeba   </td><td>
- </table></p>
+ <tr><th>Code</th><th>Biome</th><th>Technical Name</th><th>Common Name</th><th>Description</th></tr>
+ <tr><td>   0</td><td>UNKNOWN           </td><td>Unknown               </td><td>Unknown          </td><td>No data                                                 </td></tr>
+ <tr><td colspan="5">  <i>Terrestrial Biomes</i>                                                                                                                  </td></tr>
+ <tr><td>   1</td><td>WETLAND           </td><td>Wetland               </td><td>Swamp            </td><td>Permanent wetland habitat                               </td></tr>
+ <tr><td>   2</td><td>JUNGLE            </td><td>Tropical rainforest   </td><td>Jungle           </td><td>Tropical rainforest                                     </td></tr>
+ <tr><td>   3</td><td>SEASONAL_FOREST   </td><td>Temperate forest      </td><td>Deciduous forest </td><td>Deciduous broadleaf forest                              </td></tr>
+ <tr><td>   4</td><td>NEEDLELEAF_FOREST </td><td>Needleleaf forest     </td><td>Evergreen forest </td><td>Borial, alpine, and taiga evergreen forests             </td></tr>
+ <tr><td>   5</td><td>GRASSLAND         </td><td>Grassland             </td><td>Grassland        </td><td>Grasslands, prairies, plains, and savannahs             </td></tr>
+ <tr><td>   6</td><td>DESERT_SHRUBLAND  </td><td>Xeric shrubland       </td><td>Desert           </td><td>Deserts with sparse vegitation                          </td></tr>
+ <tr><td>   7</td><td>TUNDRA            </td><td>Tundra                </td><td>Tundra           </td><td>Habitat that is too cold for forests to grow            </td></tr>
+ <tr><td>   8</td><td>BARREN            </td><td>Barren                </td><td>Barren           </td><td>Desert with virtually no vegetation                     </td></tr>
+ <tr><td>   9</td><td>SAND_SEA          </td><td>Eolian sand           </td><td>Sand dunes       </td><td>Sand dunes with virtually no vegetation                 </td></tr>
+ <tr><td colspan="5">  <i>Aquatic Biomes</i>                                                                                                                      </td></tr>
+ <tr><td>  16</td><td>DEEP_OCEAN        </td><td>Deep ocean            </td><td>Ocean            </td><td>Deep ocean                                              </td></tr>
+ <tr><td>  17</td><td>FRESHWATER        </td><td>Freshwater            </td><td>Freshwater       </td><td>Lakes and rivers                                        </td></tr>
+ <tr><td>  18</td><td>SEA_FOREST        </td><td>Marine forest         </td><td>Seaweed forest   </td><td>Kelp forests and seagrass meadows                       </td></tr>
+ <tr><td>  19</td><td>TROPICAL_REEF     </td><td>Tropical reef         </td><td>Coral reef       </td><td>Coral reefs                                             </td></tr>
+ <tr><td>  20</td><td>ROCKY_SHALLOWS    </td><td>Rocky shallows        </td><td>Rocky shallows   </td><td>Shallow marine habitat with sparse flora                </td></tr>
+ <tr><td>  21</td><td>SHALLOW_OCEAN     </td><td>Shallow ocean         </td><td>Shallow ocean    </td><td>Shallow ocean, such as a coastal shelf                  </td></tr>
+ <tr><td>  22</td><td>ICE_SHEET         </td><td>Ice sheet             </td><td>Ice sheet        </td><td>Permanent ice                                           </td></tr>
+ <tr><td>  23</td><td>BOILING_SEA       </td><td>Hydrothermal sea      </td><td>Boiling sea      </td><td>Water body so hot that it boils                         </td></tr>
+ <tr><td colspan="5">  <i>Artificial Biomes</i>                                                                                                                   </td></tr>
+ <tr><td>  32</td><td>FARMLAND          </td><td>Farmland              </td><td>Farmland         </td><td>Agriculture land (eg crop fields and pastures)          </td></tr>
+ <tr><td>  33</td><td>URBAN             </td><td>Urban                 </td><td>Urban            </td><td>Cities and other artificial landscapes                  </td></tr>
+ <tr><td>  34</td><td>RUINS             </td><td>Ruins                 </td><td>Ruins            </td><td>Abandoned or destroyed urban areas                      </td></tr>
+ <tr><td colspan="5">  <i>Atronomical "Biomes"</i>                                                                                                                </td></tr>
+ <tr><td>  64</td><td>MOONSCAPE         </td><td>Regolith              </td><td>Moonscape        </td><td>Completely inhospitable rock and dust                   </td></tr>
+ <tr><td>  65</td><td>MAGMA_SEA         </td><td>Lava sea              </td><td>Magma sea        </td><td>Permanently molten lava                                 </td></tr>
+ <tr><td>  66</td><td>CRYOGEN_SEA       </td><td>Cryogen sea           </td><td>Cryogen sea      </td><td>Bodies of liquid nitrogen or methane                    </td></tr>
+ <tr><td>  67</td><td>GAS_GIANT         </td><td>Gas giant             </td><td>Gas giant        </td><td>"Surface" of a gas giant                                </td></tr>
+ <tr><td>  68</td><td>STAR              </td><td>Star                  </td><td>Star             </td><td>Surface of a star                                       </td></tr>
+ <tr><td>  69</td><td>NEUTRON_STAR      </td><td>Neutron star          </td><td>Neutron star     </td><td>Surface of a nuetron star                               </td></tr>
+ <tr><td>  70</td><td>EVENT_HORIZON     </td><td>Event horizon         </td><td>Black hole       </td><td>"Surface" of a black hole                               </td></tr>
+ <tr><td colspan="5">  <i>Fantasy Biomes</i>                                                                                                                  </td></tr>
+ <tr><td> 112</td><td>BIOLUMINESCENT    </td><td>Bioluminescent flora  </td><td>Permanent night  </td><td>Permanently dark habitat with glowing flora             </td></tr>
+ <tr><td> 113</td><td>DEAD              </td><td>Dead land             </td><td>Dead land        </td><td>Dead (or undead) land                                   </td></tr>
+ <tr><td> 114</td><td>MAGIC_GARDEN      </td><td>Magic garden          </td><td>Magic garden     </td><td>Place with strong positive magical energy               </td></tr>
+ <tr><td> 115</td><td>ELEMENTAL_CHAOS   </td><td>Elemental chaos       </td><td>Elemental chaos  </td><td>Elemental phenomana (floating rock, unmeltable ice, etc)</td></tr>
+ <tr><td> 116</td><td>OOZE              </td><td>Giant slime           </td><td>Ooze             </td><td>Living landscape, such as an ocean-sized amoeba         </td></tr>
+ </table>
+ </p>
+ <p><b>Warning:</b> Do not rely on the <code>ordinal()</code> value of this enum! Future versions of this library may
+ re-order the enum if new biomes are added. Use the biome codes instead, converting to and from the enum using the
+ <code>toBiomeCode(...)</code> and <code>fromBiomeCode(...)</code> functions.</p>
  */
 public enum Biome {
 	UNKNOWN(0, "unknown", "unknown"),
@@ -167,12 +171,10 @@ public enum Biome {
 	}
 	
 	public static Biome fromBiomeCode(byte biomeCode){
-		return _fromBiomeCode(biomeCode);
+		return fromBiomeCode((int)biomeCode);
 	}
+
 	public static Biome fromBiomeCode(int biomeCode){
-		return _fromBiomeCode(biomeCode);
-	}
-	private static Biome _fromBiomeCode(int biomeCode){
 		return switch(biomeCode) {
 			case 0 -> UNKNOWN;
 			case 1 -> WETLAND;
@@ -184,11 +186,11 @@ public enum Biome {
 			case 7 -> TUNDRA;
 			case 8 -> BARREN;
 			case 9 -> SAND_SEA;
+			case 16 -> DEEP_OCEAN;
 			case 17 -> FRESHWATER;
 			case 18 -> SEA_FOREST;
 			case 19 -> TROPICAL_REEF;
 			case 20 -> ROCKY_SHALLOWS;
-			case 16 -> DEEP_OCEAN;
 			case 21 -> SHALLOW_OCEAN;
 			case 22 -> ICE_SHEET;
 			case 23 -> BOILING_SEA;

@@ -4,14 +4,10 @@ package net.plantabyte.biomes.test;
 import net.plantabyte.biomes.Biome;
 import net.plantabyte.biomes.BiomeCalculator;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
+import java.io.*;
+import java.lang.reflect.*;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -79,7 +75,7 @@ public class Tests {
 			}
 		}
 	}
-	
+
 	public static void testClassifyBiomeOnPlanet() throws IOException {
 		// also tests classifyBiomeOnPlanetSurface(...)
 		// since classifyBiomeOnPlanet(...) forwards to that function
@@ -165,16 +161,17 @@ public class Tests {
 		var sb = new StringBuilder();
 		sb.append("<table border=\"1\">\n");
 		sb.append("<tr><th>");
-		String[] cols = {"Code", "Biome Enum", "Technical Name", "Common Name"};
+		String[] cols = {"Code", "Biome Enum", "Technical Name", "Common Name", "Description"};
 		sb.append(join("</th><th>", cols));
 		sb.append("</th></tr>\n");
 		for(var b : Biome.values()){
 			sb.append("<tr><td>");
 			sb.append(join("</td><td>",
-					b.getBiomeCode(),
-					b.toString(),
-					b.getTechnicalName(),
-					b.getCommonName()
+					leftPad(b.getBiomeCode(),4,' '),
+					rightPad(b.toString(),18,' '),
+					rightPad(sentenceCase(b.getTechnicalName()),22,' '),
+					rightPad(sentenceCase(b.getCommonName()),22,' '),
+					rightPad("(Description)",64,' ')
 			));
 			sb.append("</td></tr>\n");
 		}
@@ -191,7 +188,45 @@ public class Tests {
 		}
 		return sb.toString();
 	}
-	
+
+
+	private static String sentenceCase(String str){
+		// proper unicode text handling in Java needs a better API...
+		var sb = new StringBuilder();
+		int i = 0;
+		int cp = 0;
+		while(Character.isWhitespace(cp = str.codePointAt(i))){
+			sb.append(Character.toChars(cp));
+			i += Character.charCount(cp);
+		}
+		sb.append(Character.toChars(Character.toUpperCase(cp = str.codePointAt(i))));
+		i += Character.charCount(cp);
+		while(i < str.length()){
+			sb.append(Character.toChars(Character.toLowerCase(cp = str.codePointAt(i))));
+			i += Character.charCount(cp);
+		}
+		return sb.toString();
+	}
+
+	private static String leftPad(Object o, int n, char pad){
+		String s = String.valueOf(o);
+		var sb = new StringBuilder();
+		while(sb.length() + s.length() < n){
+			sb.append(pad);
+		}
+		return sb.append(s).toString();
+	}
+
+	private static String rightPad(Object o, int n, char pad){
+		String s = String.valueOf(o);
+		var sb = new StringBuilder();
+		sb.append(s);
+		while(sb.length() < n){
+			sb.append(pad);
+		}
+		return sb.toString();
+	}
+
 	private static boolean isTestMethod(Method m){
 		return Modifier.isStatic(m.getModifiers())
 				&& m.getName().startsWith("test");
