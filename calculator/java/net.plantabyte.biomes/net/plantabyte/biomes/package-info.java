@@ -8,7 +8,7 @@
  planetary environments.</p>
  <p>Class {@link net.plantabyte.biomes.BiomeCalculator} is a biome calculator
  that predicts the biome one should expect in a given environment. The
- prediction is made based ont he following parameters, which are relatively
+ prediction is made based on the following parameters, which are relatively
  easy to simulate:
  <ul>
  <li>solar irradiance (aka solar flux)</li>

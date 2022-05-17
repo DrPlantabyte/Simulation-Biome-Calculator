@@ -25,7 +25,7 @@ package net.plantabyte.biomes;
  <p>The full list of biomes and corresponding biome number codes are as follows:<br>
  <table border="1">
  <tr><th>Code</th><th>Biome</th><th>Technical Name</th><th>Common Name</th><th>Description</th></tr>
- <tr><td>   0</td><td>UNKNOWN           </td><td>Unknown               </td><td>Unknown          </td><td>No data                                                 </td></tr>
+ <tr><td>   0</td><td>UNKNOWN           </td><td>Unknown               </td><td>Unknown          </td><td>Represents an absence of data                           </td></tr>
  <tr><td colspan="5">  <i>Terrestrial Biomes</i>                                                                                                                  </td></tr>
  <tr><td>   1</td><td>WETLAND           </td><td>Wetland               </td><td>Swamp            </td><td>Permanent wetland habitat                               </td></tr>
  <tr><td>   2</td><td>JUNGLE            </td><td>Tropical rainforest   </td><td>Jungle           </td><td>Tropical rainforest                                     </td></tr>
@@ -60,7 +60,7 @@ package net.plantabyte.biomes;
  <tr><td colspan="5">  <i>Fantasy Biomes</i>                                                                                                                  </td></tr>
  <tr><td> 112</td><td>BIOLUMINESCENT    </td><td>Bioluminescent flora  </td><td>Permanent night  </td><td>Permanently dark habitat with glowing flora             </td></tr>
  <tr><td> 113</td><td>DEAD              </td><td>Dead land             </td><td>Dead land        </td><td>Dead (or undead) land                                   </td></tr>
- <tr><td> 114</td><td>MAGIC_GARDEN      </td><td>Magic garden          </td><td>Magic garden     </td><td>Place with strong positive magical energy               </td></tr>
+ <tr><td> 114</td><td>MAGIC_GARDEN      </td><td>Magic garden          </td><td>Magic garden     </td><td>Magical paradise                                        </td></tr>
  <tr><td> 115</td><td>ELEMENTAL_CHAOS   </td><td>Elemental chaos       </td><td>Elemental chaos  </td><td>Elemental phenomana (floating rock, unmeltable ice, etc)</td></tr>
  <tr><td> 116</td><td>OOZE              </td><td>Giant slime           </td><td>Ooze             </td><td>Living landscape, such as an ocean-sized amoeba         </td></tr>
  </table>
@@ -70,40 +70,75 @@ package net.plantabyte.biomes;
  <code>toBiomeCode(...)</code> and <code>fromBiomeCode(...)</code> functions.</p>
  */
 public enum Biome {
+	/** Represents an absence of data */
 	UNKNOWN(0, "unknown", "unknown"),
 	// terrestrial biomes
+	/** Permanent wetland habitat */
 	WETLAND(1, "swamp", "wetland"),
+	/** Tropical rainforest */
 	JUNGLE(2, "jungle", "tropical rainforest"),
+	/** Deciduous broadleaf forest  */
 	SEASONAL_FOREST(3, "deciduous forest", "temperate forest"),
+	/** Borial, alpine, and taiga evergreen forests */
 	NEEDLELEAF_FOREST(4, "evergreen forest", "needleleaf forest"),
+	/** Grasslands, prairies, plains, and savannahs */
 	GRASSLAND(5, "grassland", "grassland"),
+	/** Deserts with sparse vegitation  */
 	DESERT_SHRUBLAND(6, "desert", "xeric shrubland"),
+	/** Habitat that is too cold for forests to grow  */
 	TUNDRA(7, "tundra", "tundra"),
 	// aquatic biomes
+	/** Lakes and rivers  */
 	FRESHWATER(17, "freshwater", "freshwater"),
+	/** Kelp forests and seagrass meadows */
 	SEA_FOREST(18, "seaweed forest", "marine forest"),
+	/** Coral reefs */
 	TROPICAL_REEF(19, "coral reef", "tropical reef"),
+	/** Shallow marine habitat with sparse flora */
 	ROCKY_SHALLOWS(20, "rocky shallows", "rocky shallows"),
+	/** Deep ocean */
 	DEEP_OCEAN(16, "ocean", "deep ocean"),
+	/** Shallow ocean, such as a coastal shelf */
 	SHALLOW_OCEAN(21, "shallow ocean", "shallow ocean"),
+	/** Desert with virtually no vegetation */
 	BARREN(8, "barren", "barren"),
+	/** Sand dunes with virtually no vegetation */
 	SAND_SEA(9, "sand dunes", "eolian sand"),
+	/** Permanent ice */
 	ICE_SHEET(22, "ice sheet", "ice sheet"),
+	/** Water body so hot that it boils */
 	BOILING_SEA(23, "boiling sea", "hydrothermal sea"),
+	/** Inhospitable rock and dust, completely devoid of life */
 	MOONSCAPE(64, "moonscape", "regolith"),
+	/** Permanently molten rock */
 	MAGMA_SEA(65, "magma sea", "lava sea"),
+	/** Bodies of liquid nitrogen or other cryogenic liquid */
 	CRYOGEN_SEA(66, "cryogen sea", "cryogen sea"),
+	/** "Surface" of a gas giant */
 	GAS_GIANT(67, "gas giant", "gas giant"),
+	/** Surface of a star */
 	STAR(68, "star", "star"),
+	/** Surface of a nuetron star */
 	NEUTRON_STAR(69, "neutron star", "neutron star"),
+	/** "Surface" of a black hole */
 	EVENT_HORIZON(70, "black hole", "event horizon"),
+	// Artificial biomes
+	/** Agriculture land (eg crop fields and pastures)  */
 	FARMLAND(32, "farmland", "farmland"),
+	/** Cities and other artificial landscapes */
 	URBAN(33, "urban", "urban"),
+	/** Abandoned or destroyed urban areas  */
 	RUINS(34, "ruins", "ruins"),
+	// Fantasy biomes
+	/** Permanently dark habitat with glowing flora  */
 	BIOLUMINESCENT(112, "permanent night", "bioluminescent flora"),
+	/** Dead (or undead) land  */
 	DEAD(113, "dead land", "dead land"),
+	/** Magical paradise */
 	MAGIC_GARDEN(114, "magic garden", "magic garden"),
+	/** Floating rocks, never-melt ice, dancing fire, etc. */
 	ELEMENTAL_CHAOS(115, "elemental chaos", "elemental chaos"),
+	/** Living landscape, such as an ocean-sized amoeba */
 	OOZE(116, "ooze", "giant slime");
 	//
 
