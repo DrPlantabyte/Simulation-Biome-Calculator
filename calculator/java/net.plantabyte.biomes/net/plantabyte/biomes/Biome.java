@@ -106,17 +106,28 @@ public enum Biome {
 	ELEMENTAL_CHAOS(115, "elemental chaos", "elemental chaos"),
 	OOZE(116, "ooze", "giant slime");
 	//
-	public final byte biomeCode;
-	public final String commonName;
-	public final String technicalName;
-	
+
+	private final byte biomeCode;
+	private final String commonName;
+	private final String technicalName;
+
+	/**
+	 * Biome enum constructor
+	 * @param biomeCode Biome code (must be unique)
+	 * @param commonName Common name (in American English) for this biome, lowercase
+	 * @param technicalName Technical name (in American English) for this biome, lowercase
+	 */
 	Biome(int biomeCode, String commonName, String technicalName){
 		this.biomeCode = (byte)biomeCode;
 		this.commonName = commonName;
 		this.technicalName = technicalName;
 	}
-	
-	
+
+	/**
+	 * Converts a multi-dimensional array of biome codes to a corresponding array of Biome enums
+	 * @param byteArray an array of bytes
+	 * @return an array of Biome enum instances
+	 */
 	public static Biome[][][] convertByteArray(byte[][][] byteArray){
 		var out = new Biome[byteArray.length][][];
 		for(int i = 0; i < out.length; ++i){
@@ -124,6 +135,12 @@ public enum Biome {
 		}
 		return out;
 	}
+
+	/**
+	 * Converts a multi-dimensional array of biome codes to a corresponding array of Biome enums
+	 * @param byteArray an array of bytes
+	 * @return an array of Biome enum instances
+	 */
 	public static Biome[][] convertByteArray(byte[][] byteArray){
 		var out = new Biome[byteArray.length][];
 		for(int i = 0; i < out.length; ++i){
@@ -131,6 +148,12 @@ public enum Biome {
 		}
 		return out;
 	}
+
+	/**
+	 * Converts an array of biome codes to a corresponding array of Biome enums
+	 * @param byteArray an array of bytes
+	 * @return an array of Biome enum instances
+	 */
 	public static Biome[] convertByteArray(byte[] byteArray){
 		var out = new Biome[byteArray.length];
 		for(int i = 0; i < out.length; ++i){
@@ -138,7 +161,12 @@ public enum Biome {
 		}
 		return out;
 	}
-	
+
+	/**
+	 * Converts a multi-dimensional array of Biome enums to their corresponding 7-bit biome codes (as a byte array)
+	 * @param biomeArray an array of Biome enums
+	 * @return an array of biome codes as bytes
+	 */
 	public static byte[][][] convertBiomeArray(Biome[][][] biomeArray){
 		var out = new byte[biomeArray.length][][];
 		for(int i = 0; i < out.length; ++i){
@@ -146,6 +174,12 @@ public enum Biome {
 		}
 		return out;
 	}
+
+	/**
+	 * Converts a multi-dimensional array of Biome enums to their corresponding 7-bit biome codes (as a byte array)
+	 * @param biomeArray an array of Biome enums
+	 * @return an array of biome codes as bytes
+	 */
 	public static byte[][] convertBiomeArray(Biome[][] biomeArray){
 		var out = new byte[biomeArray.length][];
 		for(int i = 0; i < out.length; ++i){
@@ -153,6 +187,12 @@ public enum Biome {
 		}
 		return out;
 	}
+
+	/**
+	 * Converts an array of Biome enums to their corresponding 7-bit biome codes (as a byte array)
+	 * @param biomeArray an array of Biome enums
+	 * @return an array of biome codes as bytes
+	 */
 	public static byte[] convertBiomeArray(Biome[] biomeArray){
 		var out = new byte[biomeArray.length];
 		for(int i = 0; i < out.length; ++i){
