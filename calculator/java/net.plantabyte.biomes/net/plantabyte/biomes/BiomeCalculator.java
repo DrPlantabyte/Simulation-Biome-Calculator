@@ -1,5 +1,43 @@
 package net.plantabyte.biomes;
 
+/**
+ * The <code>BiomeCalculator</code> class is used to estimate the Plantabyte Biome (see
+ * {@link net.plantabyte.biomes.Biome} ) for a given Earthlly or exoplanet environment. The prediction is made based on
+ * the following parameters, which are relatively easy to simulate (see
+ * {@link net.plantabyte.biomes.BiomeCalculator#classifyBiome(double, double, double, double, double, double)} ):
+ * <ul>
+ * <li>solar irradiance (aka solar flux), in watts per square meter</li>
+ * <li>altitude, in meters above or below sea-level</li>
+ * <li>average annual temperature, in degrees C</li>
+ * <li>range of annual temperature variation (amplitude of sine wave or ~1.5 standard deviations of temperature data), in degrees C</li>
+ * <li>annual precipitation, in mm (10mm of snow == 1 mm precipitation)</li>
+ * </ul>
+ * <p>
+ * In lieu of calculating/measuring the solar irradiance, you can instead supply the latitude and longitude coordinates
+ * of the location of interest (see
+ * {@link net.plantabyte.biomes.BiomeCalculator#classifyBiomeOnPlanet(double, double, double, double, double, double)}).
+ * <p>
+ * For exoplanets whose physucal parameters are different from Earth, additional information about the exoplanet are
+ * required. These additional parameters are:
+ * <ul>
+ * <li>planet mass, in kg (Earth = 5.972e24)</li>
+ * <li>planet radius, in km (Earth = 6371)</li>
+ * <li>top-of-atmosphere (TOA) solar flux, in </li>
+ * <li></li>
+ * <li></li>
+ * <li></li>
+ * <li></li>
+ * <li></li>
+ * </ul>
+ * <p>
+ * For convenience, you and create or modify a <code>BiomeCalculator</code> using a builder pattern. For example, if
+ * you wanted to predict biomes on a hypothetical version of Earth that had twise the atmosphere and was tidally locked
+ * to the sun, you could write the following code:<br>
+ * <pre>
+ var earthCalculator = new BiomeCalculator();
+ var earth2 = earthCalculator.withTidalLock(true).withSurfacePressure(202.6);
+ * </pre>
+ */
 public class BiomeCalculator {
 	//
 	private final double planet_mass_kg;
@@ -9,7 +47,11 @@ public class BiomeCalculator {
 	private final boolean tidal_lock;
 	private final double mean_surface_pressure_kPa;
 	private final boolean exoplanet;
-	
+
+	/**
+	 * The default <code>BiomeCalculator</code> constructor is configured to estimate biomes on Earth (or an Earth-like
+	 * exoplanet).
+	 */
 	public BiomeCalculator() {
 		// Earth-like planet
 		planet_mass_kg = 5.972e24;
@@ -20,7 +62,19 @@ public class BiomeCalculator {
 		tidal_lock = false;
 		exoplanet = false;
 	}
-	
+
+	/**
+	 * Constructs a new <code>BiomeCalculator</code> for an exoplanet with the specified size, solar irradiance, and
+	 * atmosphere.
+	 * @param planet_mass_kg Mass of the planet, in kg (Earth = 5.972e24 kg)
+	 * @param planet_mean_radius_km = Radius of the planet, in km (Earth = 6371 km)
+	 * @param axis_tilt_deg Rotation axis tilt of the planet, in degrees (Earth = 23 degrees)
+	 * @param tidal_lock Whether or not this exoplanet is tidally locked to its sun
+	 * @param toa_solar_flux_Wpm2 The solar irradiance above the planet's atmosphere, in watter per square meter (Earth = 1373 W/m2)
+	 * @param mean_surface_pressure_kPa Atmospheric pressure on the surface, in kPa (Earth = 101.3)
+	 * @param is_exoplanet If false, force biome calculations to only use Earthly biomes. If true, allow for
+	 *                     consideration of Biomes that don't naturally exist on Earth but could exist on other planets
+	 */
 	public BiomeCalculator(
 			final double planet_mass_kg,
 			final double planet_mean_radius_km,
@@ -38,6 +92,13 @@ public class BiomeCalculator {
 		this.exoplanet = is_exoplanet;
 		this.tidal_lock = tidal_lock;
 	}
+
+	/**
+	 * Returns a new <code>BiomeCalculator</code> instance that is identical to this one, except with a different mass.
+	 * <b>This method <i><u>DOES NOT MODIFY</u></i> this <code>BiomeCalculator</code>!</b>
+	 * @param planet_mass_kg New planet mass, in kg
+	 * @return A <code>BiomeCalculator</code> instance
+	 */
 	public BiomeCalculator withPlanetMass(double planet_mass_kg){
 		return new BiomeCalculator(
 				planet_mass_kg,
@@ -49,6 +110,13 @@ public class BiomeCalculator {
 				this.exoplanet
 		);
 	}
+
+	/**
+	 * Returns a new <code>BiomeCalculator</code> instance that is identical to this one, except with a different radius.
+	 * <b>This method <i><u>DOES NOT MODIFY</u></i> this <code>BiomeCalculator</code>!</b>
+	 * @param planet_mean_radius_km New planet radius, in km
+	 * @return A <code>BiomeCalculator</code> instance
+	 */
 	public BiomeCalculator withPlanetRadius(double planet_mean_radius_km){
 		return new BiomeCalculator(
 				this.planet_mass_kg,
@@ -60,6 +128,13 @@ public class BiomeCalculator {
 				this.exoplanet
 		);
 	}
+
+	/**
+	 * Returns a new <code>BiomeCalculator</code> instance that is identical to this one, except with a different axis tilt.
+	 * <b>This method <i><u>DOES NOT MODIFY</u></i> this <code>BiomeCalculator</code>!</b>
+	 * @param axis_tilt_deg New tilt, in degrees
+	 * @return A <code>BiomeCalculator</code> instance
+	 */
 	public BiomeCalculator withAxisTilt(double axis_tilt_deg){
 		return new BiomeCalculator(
 				this.planet_mass_kg,
@@ -71,6 +146,13 @@ public class BiomeCalculator {
 				this.exoplanet
 		);
 	}
+
+	/**
+	 * Returns a new <code>BiomeCalculator</code> instance that is identical to this one, except with the specified tidal locking
+	 * <b>This method <i><u>DOES NOT MODIFY</u></i> this <code>BiomeCalculator</code>!</b>
+	 * @param isTidallyLocked True for tidally locked, false for a rotating planet
+	 * @return A <code>BiomeCalculator</code> instance
+	 */
 	public BiomeCalculator withTidalLock(boolean isTidallyLocked){
 		return new BiomeCalculator(
 				this.planet_mass_kg,
@@ -82,6 +164,13 @@ public class BiomeCalculator {
 				this.exoplanet
 		);
 	}
+
+	/**
+	 * Returns a new <code>BiomeCalculator</code> instance that is identical to this one, except with a different TOA solar irradiance.
+	 * <b>This method <i><u>DOES NOT MODIFY</u></i> this <code>BiomeCalculator</code>!</b>
+	 * @param toa_solar_flux_Wpm2 New top-of-atmosphere solar irradiance, in watts per square meter
+	 * @return A <code>BiomeCalculator</code> instance
+	 */
 	public BiomeCalculator withTOASolarFlux(double toa_solar_flux_Wpm2){
 		return new BiomeCalculator(
 				this.planet_mass_kg,
@@ -93,6 +182,13 @@ public class BiomeCalculator {
 				this.exoplanet
 		);
 	}
+
+	/**
+	 * Returns a new <code>BiomeCalculator</code> instance that is identical to this one, except with a different atmospheric pressure.
+	 * <b>This method <i><u>DOES NOT MODIFY</u></i> this <code>BiomeCalculator</code>!</b>
+	 * @param mean_surface_pressure_kPa New planet atmospher, in kPa
+	 * @return A <code>BiomeCalculator</code> instance
+	 */
 	public BiomeCalculator withSurfacePressure(double mean_surface_pressure_kPa){
 		return new BiomeCalculator(
 				this.planet_mass_kg,
@@ -104,6 +200,15 @@ public class BiomeCalculator {
 				this.exoplanet
 		);
 	}
+
+	/**
+	 * Returns a new <code>BiomeCalculator</code> instance that is identical to this one, except with the specified
+	 * level of restriction on Biome calculations.
+	 * <b>This method <i><u>DOES NOT MODIFY</u></i> this <code>BiomeCalculator</code>!</b>
+	 * @param is_exoplanet Set to true to allow exoplanet biomes; false to only calculate Earthly biomes (regardless of
+	 *                     the planet's physical parameters)
+	 * @return A <code>BiomeCalculator</code> instance
+	 */
 	public BiomeCalculator asExoplanet(boolean is_exoplanet){
 		return new BiomeCalculator(
 				this.planet_mass_kg,
@@ -174,7 +279,19 @@ public class BiomeCalculator {
 					{0.8729486F, 0.81519806F, 0.4026484F, 0.0783796F},
 					{0.24349129F, 0.7866096F, 0.45044297F, 0.11177942F}}
 	};
-	
+
+	/**
+	 * Calculates the predicted Plantabyte  for the given set of environmental parameters (see
+	 * {@link net.plantabyte.biomes.Biome})
+	 * @param mean_solar_flux_Wpm2 Annual mean solar irradiance at ground/sea level, in watts per square meter
+	 * @param pressure_kPa Atmospheric pressure at ground/sea level, in kPa
+	 * @param altitude_m Altitude of the terrain in meters, with negative values to indicate ocean depth
+	 * @param mean_temp_C Annual mean temperature, in degrees C
+	 * @param temp_var_C Range of annual temperature variation, in degrees C (ampplitude of a seasonal sine wave or
+	 *                   1.5 standard deviations of daily averages)
+	 * @param annual_precip_mm Total annual precipitation in mm (10mm snow == 1mm precipitation)
+	 * @return Returns the <code>Biome</code> enum predicted for the above environmental parameters on this (exo)planet
+	 */
 	public Biome classifyBiome(
 			double mean_solar_flux_Wpm2,
 			double pressure_kPa,
@@ -262,7 +379,19 @@ public class BiomeCalculator {
 		//// Done!
 		return biome_code;
 	}
-	
+
+	/**
+	 * Calculates the predicted Plantabyte  for a given location on this (exo)planet (see
+	 * {@link net.plantabyte.biomes.Biome})
+	 * @param altitude_m Altitude of the terrain in meters, with negative values to indicate ocean depth
+	 * @param mean_temp_C Annual mean temperature, in degrees C
+	 * @param temp_var_C Range of annual temperature variation, in degrees C (ampplitude of a seasonal sine wave or
+	 *                   1.5 standard deviations of daily averages)
+	 * @param annual_precip_mm Total annual precipitation in mm (10mm snow == 1mm precipitation)
+	 * @param latitude Location latitude, in degrees North of the equator (negative value for South of the equator)
+	 * @param longitude Location longitude, in degrees East (negative values indicate West direction)
+	 * @return Returns the <code>Biome</code> enum predicted for the above environmental parameters on this (exo)planet
+	 */
 	public Biome classifyBiomeOnPlanet(
 			double altitude_m,
 			double mean_temp_C,
@@ -318,7 +447,18 @@ public class BiomeCalculator {
 				annual_precip_mm
 		);
 	}
-	
+
+	/**
+	 * Calculates the predicted Plantabyte  for the given set of environment on this (exo)planet (see
+	 * {@link net.plantabyte.biomes.Biome})
+	 * @param mean_solar_flux_Wpm2 Annual mean solar irradiance at ground/sea level, in watts per square meter
+	 * @param altitude_m Altitude of the terrain in meters, with negative values to indicate ocean depth
+	 * @param mean_temp_C Annual mean temperature, in degrees C
+	 * @param temp_var_C Range of annual temperature variation, in degrees C (ampplitude of a seasonal sine wave or
+	 *                   1.5 standard deviations of daily averages)
+	 * @param annual_precip_mm Total annual precipitation in mm (10mm snow == 1mm precipitation)
+	 * @return Returns the <code>Biome</code> enum predicted for the above environmental parameters on this (exo)planet
+	 */
 	public Biome classifyBiomeOnPlanetSurface(
 			double mean_solar_flux_Wpm2,
 			double altitude_m,
@@ -423,8 +563,8 @@ public class BiomeCalculator {
 			return hp;
 		}
 	}
-	
-	public double pressureAtDryAltitude(double altitude_m, double mean_temp_C) {
+
+	private double pressureAtDryAltitude(double altitude_m, double mean_temp_C) {
 		double K = mean_temp_C + 273.15;
 		double R = 8.314510;  // j/K/mole
 		double air_molar_mass = 0.02897;  // kg/mol

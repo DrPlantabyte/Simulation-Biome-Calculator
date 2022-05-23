@@ -1,21 +1,21 @@
 /**
- <p>Dr. Plantabyte's biome calculator for Earth and simulated exoplanets.</p>
+ Dr. Plantabyte's biome calculator for Earth and simulated exoplanets.
  <p>
  This module provides a single package, {@link net.plantabyte.biomes}, which
  contains an enum of Dr. Plantabyte biomes ({@link net.plantabyte.biomes.Biome})
  and a {@link net.plantabyte.biomes.BiomeCalculator} class for predicting the
- biome for a given Earthly or exoplanet environmental parameters.</p>
- <p></p>
- <p><b><u>Plantabyte Biomes</u></b></p>
+ biome for a given Earthly or exoplanet environmental parameters.
+ <p><b><u>Plantabyte Biomes</u></b>
  <p>Dr. Plantabyte's biomes are based on various sources from the fields of remote
  sensing, marine biology, and astrobiology research, combined with machine
  learning and a few expert guestimates from plant biologist
  Dr. Christopher C. Hall. The result is a realistic biome classification system
  that covers both Earthly biomes and plausible exoplanet environments. A few
  abiotic "biomes" are included as well to facilitate use in simulations for
- graphic design, story-telling, and games.</p>
+ graphic design, story-telling, and games.
  <p>The full list of biomes and corresponding biome number codes are as follows:<br>
  <table border="1">
+ <caption>Table of Plantabyte Biome codes and their corresponding biomes</caption>
  <tr><th> Code </th><th>Name             </th><th>Description                                       </th></tr>
  <tr><td>    0 </td><td>UNKNOWN          </td><td>Unclassifiable biome                              </td></tr>
  <tr><td colspan="3">  <i>Terrestrial Biomes</i>                                                    </td></tr>
@@ -57,11 +57,10 @@
  <tr><td>  114 </td><td>MAGIC_GARDEN     </td><td>Magical paradise                                  </td></tr>
  <tr><td>  115 </td><td>ELEMENTAL_CHAOS  </td><td>Floating rocks, never-melt ice, dancing fire, etc.</td></tr>
  <tr><td>  116 </td><td>OOZE             </td><td>Living landscape, such as an ocean-sized amoeba   </td><td>
- </table></p>
- <p></p>
- 
- <p><b><u>Example Usage</u></b></p>
- <p><pre>
+ </table>
+ <p>
+ <b><u>Example Usage</u></b>
+ <br><pre>
  final var EarthBC = new BiomeCalculator();
  Consumer&lt;HashMap&lt;String,Double&gt;&gt; printBiome = (HashMap&lt;String,Double&gt; env)-&gt;System.out.println(
  &nbsp;&nbsp;EarthBC.classifyBiome(
@@ -91,7 +90,7 @@
  Fairbanks_Alaska.put("temp_var_C", 21.7);
  Fairbanks_Alaska.put("annual_precip_mm", 296.);
  printBiome.accept(Fairbanks_Alaska);
- </pre></p>
+ </pre>
  
  */
 module net.plantabyte.biomes{

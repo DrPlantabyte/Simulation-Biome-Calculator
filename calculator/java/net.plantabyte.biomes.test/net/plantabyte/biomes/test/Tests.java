@@ -60,7 +60,7 @@ public class Tests {
 			bc = bc.asExoplanet(Boolean.parseBoolean(trow[iExo]));
 			var b = bc.classifyBiome(
 					Double.parseDouble(trow[iMeanFlux]),
-					bc.pressureAtDryAltitude(Double.parseDouble(trow[iAlt]), Double.parseDouble(trow[iTemp])),
+					pressureAtDryAltitude(Double.parseDouble(trow[iAlt]), Double.parseDouble(trow[iTemp])),
 					Double.parseDouble(trow[iAlt]),
 					Double.parseDouble(trow[iTemp]),
 					Double.parseDouble(trow[iTempVar]),
@@ -250,5 +250,14 @@ public class Tests {
 				StandardCharsets.UTF_8
 		));
 		return src.lines().map((String s) -> s.split(",")).collect(Collectors.toList()).toArray(new String[0][]);
+	}
+
+	private static double pressureAtDryAltitude(double altitude_m, double mean_temp_C) {
+		double K = mean_temp_C + 273.15;
+		double R = 8.314510;  // j/K/mole
+		double air_molar_mass = 0.02897;  // kg/mol
+		double gravity_m_per_s2 = 9.81;
+		double pressure_kPa = 101.3 * Math.exp(-(air_molar_mass * gravity_m_per_s2 * altitude_m)/(R*K));
+		return pressure_kPa;
 	}
 }

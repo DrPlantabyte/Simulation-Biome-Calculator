@@ -1,29 +1,29 @@
 package net.plantabyte.biomes;
 
 /**
- <p><b><u>Dr. Plantabyte's biomes for Earth and simulated exoplanets.</u></b></p>
+ <p><b><u>Dr. Plantabyte's biomes for Earth and simulated exoplanets.</u></b>
  <p>These biomes are based on various sources from the fields of remote sensing,
  marine biology, and astrobiology research, combined with machine learning and a
  few expert guestimates from plant biologist Dr. Christopher C. Hall. The result
  is  a realistic biome classification system that covers both Earthly biomes and
  plausible exoplanet environments. A few  abiotic "biomes" are included as well
  to facilitate use in simulations for graphic design, story-telling, and games.
- </p>
  <p>The Biome enum represents Dr. Plantabyte's biomes for Earth and simulated
  exoplanets. The biomes include both Earthly biomes like tropical rainforests
  (jungle) and grasslands, as well as biomes that may exist on other planets,
- such as boiling seas.</p>
+ such as boiling seas.
  <p>To bridge the gap between lay-person and technical names for the biomes,
  each Plantabyte biome has a common name
  ({@link net.plantabyte.biomes.Biome#commonName}) and a technical name
- ({@link Biome#getTechnicalName()}). For example, the </p>
+ ({@link Biome#getTechnicalName()}). For example, the 
  <p>Biomes are encoded as 7-bit codes consisting of 3 category bits and 4 biome
  code bits:<br>
  bits: <code>0b0yyyxxxx</code><br>
  <code>yyy</code> = biome category (0=terrestrial, 1=aquatic, 2=artificial, 4=astronomical, 7=fictional)<br>
- <code>xxxx</code> = biome code within category</p>
+ <code>xxxx</code> = biome code within category
  <p>The full list of biomes and corresponding biome number codes are as follows:<br>
  <table border="1">
+ <caption>Table of Plantabyte Biome codes and their corresponding biomes</caption>
  <tr><th>Code</th><th>Biome</th><th>Technical Name</th><th>Common Name</th><th>Description</th></tr>
  <tr><td>   0</td><td>UNKNOWN           </td><td>Unknown               </td><td>Unknown          </td><td>Represents an absence of data                           </td></tr>
  <tr><td colspan="5">  <i>Terrestrial Biomes</i>                                                                                                                  </td></tr>
@@ -51,7 +51,7 @@ package net.plantabyte.biomes;
  <tr><td>  34</td><td>RUINS             </td><td>Ruins                 </td><td>Ruins            </td><td>Abandoned or destroyed urban areas                      </td></tr>
  <tr><td>  35</td><td>POLLUTED_WASTELAND</td><td>Toxic wasteland       </td><td>Industrial barrens</td><td>Land too polluted to support terrestrial life          </td></tr>
  <tr><td>  36</td><td>POLLUTED_WASTEWATER</td><td>Toxic water          </td><td>Hypoxic water    </td><td>Water too polluted to support aquatic life              </td></tr>
- <tr><td colspan="5">  <i>Atronomical "Biomes"</i>                                                                                                                </td></tr>
+ <tr><td colspan="5">  <i>Astronomical "Biomes"</i>                                                                                                                </td></tr>
  <tr><td>  64</td><td>MOONSCAPE         </td><td>Regolith              </td><td>Moonscape        </td><td>Completely inhospitable rock and dust                   </td></tr>
  <tr><td>  65</td><td>MAGMA_SEA         </td><td>Lava sea              </td><td>Magma sea        </td><td>Permanently molten lava                                 </td></tr>
  <tr><td>  66</td><td>CRYOGEN_SEA       </td><td>Cryogen sea           </td><td>Cryogen sea      </td><td>Bodies of liquid nitrogen or methane                    </td></tr>
@@ -66,10 +66,10 @@ package net.plantabyte.biomes;
  <tr><td> 115</td><td>ELEMENTAL_CHAOS   </td><td>Elemental chaos       </td><td>Elemental chaos  </td><td>Elemental phenomana (floating rock, unmeltable ice, etc)</td></tr>
  <tr><td> 116</td><td>OOZE              </td><td>Giant slime           </td><td>Ooze             </td><td>Living landscape, such as an ocean-sized amoeba         </td></tr>
  </table>
- </p>
+ 
  <p><b>Warning:</b> Do not rely on the <code>ordinal()</code> value of this enum! Future versions of this library may
  re-order the enum if new biomes are added. Use the biome codes instead, converting to and from the enum using the
- <code>toBiomeCode(...)</code> and <code>fromBiomeCode(...)</code> functions.</p>
+ <code>toBiomeCode(...)</code> and <code>fromBiomeCode(...)</code> functions.
  */
 public enum Biome {
 	/** Represents an absence of data */
@@ -241,20 +241,50 @@ public enum Biome {
 		}
 		return out;
 	}
-	
+
+	/**
+	 * Gets the common english name for this biome
+	 * @return Returns the common english name for this biome, as a lowercase String
+	 */
 	public String getCommonName(){ return commonName; }
+
+	/**
+	 * Gets the technical english name for this biome that is used in the scientific literature. Note that even in the
+	 * science literature, biomes don't have a universal or consistent naming scheme. The Plantabyte biome technical
+	 * names are either consensus names from or approximations commonly used in scientific literature.
+	 * @return Returns the technical english name for this biome, as a lowercase String
+	 */
 	public String getTechnicalName(){ return technicalName; }
-	
+
+	/**
+	 * Gets the byte code for the given Biome
+	 * @param b A <code>Biome</code> enum instance
+	 * @return The corresponding byte code, as a <code>byte</code> type
+	 */
 	public static byte toBiomeCode(Biome b){ return b.biomeCode; }
-	
+
+	/**
+	 * Gets the byte code for this Biome
+	 * @return The corresponding byte code, as a <code>byte</code> type
+	 */
 	public byte getBiomeCode(){
 		return biomeCode;
 	}
-	
+
+	/**
+	 * Converts a byte code to the corresponding <code>Biome</code> enum.
+	 * @param biomeCode A Plantabyte Biome code, as described in {@link net.plantabyte.biomes.Biome}
+	 * @return The <code>Biome</code> enum corresponding tot he specified byte code
+	 */
 	public static Biome fromBiomeCode(byte biomeCode){
 		return fromBiomeCode((int)biomeCode);
 	}
 
+	/**
+	 * Converts a byte code to the corresponding <code>Biome</code> enum.
+	 * @param biomeCode A Plantabyte Biome code, as described in {@link net.plantabyte.biomes.Biome}
+	 * @return The <code>Biome</code> enum corresponding tot he specified byte code
+	 */
 	public static Biome fromBiomeCode(int biomeCode){
 		return switch(biomeCode) {
 			case 0 -> UNKNOWN;
