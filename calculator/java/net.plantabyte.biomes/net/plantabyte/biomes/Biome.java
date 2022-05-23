@@ -49,6 +49,8 @@ package net.plantabyte.biomes;
  <tr><td>  32</td><td>FARMLAND          </td><td>Farmland              </td><td>Farmland         </td><td>Agriculture land (eg crop fields and pastures)          </td></tr>
  <tr><td>  33</td><td>URBAN             </td><td>Urban                 </td><td>Urban            </td><td>Cities and other artificial landscapes                  </td></tr>
  <tr><td>  34</td><td>RUINS             </td><td>Ruins                 </td><td>Ruins            </td><td>Abandoned or destroyed urban areas                      </td></tr>
+ <tr><td>  35</td><td>POLLUTED_WASTELAND</td><td>Toxic wasteland       </td><td>Industrial barrens</td><td>Land too polluted to support terrestrial life          </td></tr>
+ <tr><td>  36</td><td>POLLUTED_WASTEWATER</td><td>Toxic water          </td><td>Hypoxic water    </td><td>Water too polluted to support aquatic life              </td></tr>
  <tr><td colspan="5">  <i>Atronomical "Biomes"</i>                                                                                                                </td></tr>
  <tr><td>  64</td><td>MOONSCAPE         </td><td>Regolith              </td><td>Moonscape        </td><td>Completely inhospitable rock and dust                   </td></tr>
  <tr><td>  65</td><td>MAGMA_SEA         </td><td>Lava sea              </td><td>Magma sea        </td><td>Permanently molten lava                                 </td></tr>
@@ -129,6 +131,10 @@ public enum Biome {
 	URBAN(33, "urban", "urban"),
 	/** Abandoned or destroyed urban areas  */
 	RUINS(34, "ruins", "ruins"),
+	/** Abandoned or destroyed urban areas  */
+	POLLUTED_WASTELAND(35, "toxic wasteland", "industrial barrens"),
+	/** Abandoned or destroyed urban areas  */
+	POLLUTED_WASTEWATER(36, "toxic water", "hypoxic water"),
 	// Fantasy biomes
 	/** Permanently dark habitat with glowing flora  */
 	BIOLUMINESCENT(112, "permanent night", "bioluminescent flora"),
@@ -272,6 +278,8 @@ public enum Biome {
 			case 32 -> FARMLAND;
 			case 33 -> URBAN;
 			case 34 -> RUINS;
+			case 35 -> POLLUTED_WASTELAND;
+			case 36 -> POLLUTED_WASTEWATER;
 			case 64 -> MOONSCAPE;
 			case 65 -> MAGMA_SEA;
 			case 66 -> CRYOGEN_SEA;

@@ -156,6 +156,18 @@ public class Tests {
 		
 		
 	}
+
+	public static void testBiomeConversions(){
+		var biomeArray = Biome.values();
+		var byteArray = Biome.convertBiomeArray(biomeArray);
+		var lookupArray = Biome.convertByteArray(byteArray);
+		for(int i = 0; i < biomeArray.length; ++i){
+			if(lookupArray[i] != biomeArray[i]){
+				throw new AssertionError(String.format("Failed to convert biome %s to biome code %d and back to %s, got %s instead.",
+						biomeArray[i], byteArray[i], biomeArray[i], lookupArray[i]));
+			}
+		}
+	}
 	
 	public static void testBiomePrintout(){
 		var sb = new StringBuilder();

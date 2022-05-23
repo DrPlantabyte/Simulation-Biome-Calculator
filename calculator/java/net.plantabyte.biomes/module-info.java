@@ -41,6 +41,8 @@
  <tr><td>   32 </td><td>FARMLAND         </td><td>Cultivated land                                   </td></tr>
  <tr><td>   33 </td><td>URBAN            </td><td>Cities, streets, and other artificial structures  </td></tr>
  <tr><td>   34 </td><td>RUINS            </td><td>Abandoned urban areas being reclaimed by nature   </td></tr>
+ <tr><td>   35 </td><td>POLLUTED_WASTELAND</td><td>Land too polluted to support terrestrial life    </td></tr>
+ <tr><td>   36 </td><td>POLLUTED_WASTEWATER</td><td>Water too polluted to support aquatic life      </td></tr>
  <tr><td colspan="3">  <i>Astronomical "Biomes"</i>                                                 </td></tr>
  <tr><td>   64 </td><td>MOONSCAPE        </td><td>Lifeless dry dust and/or rock                     </td></tr>
  <tr><td>   65 </td><td>MAGMA_SEA        </td><td>Ocean of molten rock                              </td></tr>

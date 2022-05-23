@@ -36,6 +36,8 @@ xxxx = biome code within category
 |   32 |FARMLAND         |Cultivated land                                   |
 |   33 |URBAN            |Cities, streets, and other artificial structures  |
 |   34 |RUINS            |Abandoned urban areas being reclaimed by nature   |
+|   35 |POLLUTED_WASTELAND|Land too polluted to support terrestrial life    |
+|   36 |POLLUTED_WASTEWATER|Water too polluted to support aquatic life      |
 |      | *Astronomical "Biomes"* |                                          |
 |   64 |MOONSCAPE        |Lifeless dry dust and/or rock                     |
 |   65 |MAGMA_SEA        |Ocean of molten rock                              |
