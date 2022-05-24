@@ -20,6 +20,9 @@ use std::fmt::{Display, Result, Formatter};
 """);
 		sb.append("pub enum Biome {\n");
 		for(var b : Biome.values()){
+			String docStr = b.getTechnicalName();
+			if(!b.getCommonName().equals(b.getTechnicalName())) docStr += ", aka "+b.getCommonName();
+			sb.append(commentPrefix(docStr, "\t/// ")).append("\n");
 			sb.append("\t").append(b.name()).append(",\n");
 		}
 		sb.append("}\n");
@@ -34,6 +37,8 @@ struct BiomeEnumData {
 """);
 		sb.append("impl BiomeEnumData {\n");
 		for(var b : Biome.values()){
+			String docStr = "const data for enum Biome::"+b.name();
+			sb.append(commentPrefix(docStr, "\t/// ")).append("\n");
 			sb.append("\tconst ").append(b.name())
 					.append(": Self = Self{biome_code: ").append(b.getBiomeCode())
 					.append(", enum_name: &\"").append(b.name())
@@ -86,6 +91,7 @@ struct BiomeEnumData {
 				var T = sign+base;
 				var fn_txt = """
 impl From<TTT> for Biome {
+_DOCSTR_
 	fn from(bcode: TTT) -> Biome {
 		if bcode > 0 && bcode < 256 {
 			Biome::from(bcode as u8)
@@ -94,7 +100,8 @@ impl From<TTT> for Biome {
 		}
 	}
 }
-""".replace("TTT", T);
+""".replace("TTT", T)
+						.replace("_DOCSTR_", commentPrefix("Converts from Plantabyte biome code (as "+T+") to the corresponding Biome enum","\t/// "));
 				if(sign.equals("u")){
 					fn_txt = fn_txt.replace("bcode > 0 && ", "");
 				}
@@ -104,11 +111,13 @@ impl From<TTT> for Biome {
 
 		sb.append("""
 impl From<&Biome> for u8 {
+	/// Converts from Plantabyte biome byte code to the corresponding Biome enum
 	fn from(b: &Biome) -> u8 {
 		b.bcode()
 	}
 }
 impl From<Biome> for u8 {
+	/// Converts from Biome enum to the corresponding Plantabyte biome byte code
 	fn from(b: Biome) -> u8 {
 		b.bcode()
 	}
@@ -124,5 +133,12 @@ impl Display for Biome {
 """);
 
 		System.out.println(sb.toString());
+	}
+	
+	private static String commentPrefix(String text, String prefix){
+		return prefix+text.stripTrailing()
+				.replace("\r\n", "\n")
+				.replace("\r", "")
+				.replace("\n", "\n"+prefix);
 	}
 }
