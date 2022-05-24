@@ -14,7 +14,6 @@ public class PortHelper {
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use std::fmt::{Display, Result, Formatter};
-use std::string::String;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, EnumIter, Clone)]
@@ -25,27 +24,53 @@ use std::string::String;
 		}
 		sb.append("}\n");
 
+		sb.append("""
+struct BiomeEnumData {
+	biome_code: u8,
+	enum_name: &'static str,
+	common_name: &'static str,
+	technical_name: &'static str
+}
+""");
+		sb.append("impl BiomeEnumData {\n");
+		for(var b : Biome.values()){
+			sb.append("\tconst ").append(b.name())
+					.append(": Self = Self{biome_code: ").append(b.getBiomeCode())
+					.append(", enum_name: &\"").append(b.name())
+					.append("\", common_name: &\"").append(b.getCommonName())
+					.append("\", technical_name: &\"").append(b.getTechnicalName())
+					.append("\"};\n");
+		}
+		sb.append("}\n");
+
+		sb.append("fn get_data(biome: &Biome) -> &'static BiomeEnumData {\n");
+		sb.append("\tmatch *biome {\n");
+		for(var b : Biome.values()){
+			sb.append("\t\tBiome::").append(b.name()).append(" => &BiomeEnumData::").append(b.name()).append(",\n");
+		}
+		sb.append("\t}\n}\n");
+
 		sb.append("impl Biome {\n");
-		sb.append("\tfn bcode(&self) -> u8 {\n\t\tmatch *self {\n");
-		for(var b : Biome.values()){
-			sb.append("\t\t\tBiome::").append(b.name()).append(" => ").append(b.getBiomeCode()).append(",\n");
-		}
-		sb.append("\t\t}\n\t}\n");
-		sb.append("\tfn label(&self) -> &str {\n\t\tmatch *self {\n");
-		for(var b : Biome.values()){
-			sb.append("\t\t\tBiome::").append(b.name()).append(" => \"").append(b.name()).append("\",\n");
-		}
-		sb.append("\t\t}\n\t}\n");
-		sb.append("\tfn common_name(&self) -> &str {\n\t\tmatch *self {\n");
-		for(var b : Biome.values()){
-			sb.append("\t\t\tBiome::").append(b.name()).append(" => \"").append(b.getCommonName()).append("\",\n");
-		}
-		sb.append("\t\t}\n\t}\n");
-		sb.append("\tfn technical_name(&self) -> &str {\n\t\tmatch *self {\n");
-		for(var b : Biome.values()){
-			sb.append("\t\t\tBiome::").append(b.name()).append(" => \"").append(b.getTechnicalName()).append("\",\n");
-		}
-		sb.append("\t\t}\n\t}\n");
+		sb.append("""
+	pub fn bcode(&self) -> u8 {
+		get_data(self).biome_code
+	}
+""");
+		sb.append("""
+	pub fn label(&self) -> &'static str {
+		get_data(self).enum_name
+	}
+""");
+		sb.append("""
+	pub fn common_name(&self) -> &'static str {
+		get_data(self).common_name
+	}
+""");
+		sb.append("""
+	pub fn technical_name(&self) -> &'static str {
+		get_data(self).technical_name
+	}
+""");
 
 		sb.append("}\n");
 
