@@ -11,12 +11,11 @@ public class PortHelper {
 		System.out.println("//===== RUST =====");
 		var sb = new StringBuilder();
 		sb.append("""
-use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
 use std::fmt::{Display, Result, Formatter};
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, EnumIter, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 """);
 		sb.append("pub enum Biome {\n");
 		for(var b : Biome.values()){
@@ -26,6 +25,18 @@ use std::fmt::{Display, Result, Formatter};
 			sb.append("\t").append(b.name()).append(",\n");
 		}
 		sb.append("}\n");
+
+		sb.append("impl Biome {\n");
+		String arrayType = String.format("[Self; %d]", Biome.values().length);
+		sb.append("\tconst _VALUES: ").append(arrayType).append(" = [");
+		for(var b : Biome.values()){ sb.append("Self::").append(b.name()).append(", ");}
+		sb.append("];\n");sb.append("""
+	pub fn values() -> &'static TTT{
+		return &(Self::_VALUES);
+	}
+""".replace("TTT",arrayType));
+		sb.append("}\n");
+
 
 		sb.append("""
 struct BiomeEnumData {
