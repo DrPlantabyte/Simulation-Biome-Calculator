@@ -86,7 +86,7 @@ impl Biome {
  	/// Returns a reference to a static array of all enum variants (useful for
  	/// iteration over Biome enum types)
  	/// # Returns
- 	/// Array or Biome enum variants
+ 	/// Array of Biome enum variants
 	pub fn values() -> &'static [Self; 35]{
 		return &(Self::_VALUES);
 	}
