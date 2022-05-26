@@ -399,6 +399,59 @@ impl Display for Biome {
 		f.write_str(self.name().as_ref())
 	}
 }
+
+pub mod classifier {
+	use crate::Biome;
+
+	#[allow(non_snake_case)]
+	pub struct Planet {
+		planet_mass_kg: f64,
+		planet_mean_radius_km: f64,
+		toa_solar_flux_Wpm2: f64,
+		axis_tilt_deg: f64,
+		tidal_lock: bool,
+		mean_surface_pressure_kPa: f64,
+		exoplanet: bool
+	}
+
+	#[allow(non_snake_case)]
+	pub fn classify_biome(
+		mean_solar_flux_Wpm2: f64,
+		pressure_kPa: f64,
+		altitude_m: f64,
+		mean_temp_C: f64,
+		temp_var_C: f64,
+		annual_precip_mm: f64
+	) -> Biome {
+		todo!()
+	}
+
+	#[allow(non_snake_case)]
+	pub fn classify_biome_on_planet(
+		planet: &Planet,
+		altitude_m: f64,
+		mean_temp_C: f64,
+		temp_var_C: f64,
+		annual_precip_mm: f64,
+		latitude: f64,
+		longitude: f64
+	) -> Biome {
+		todo!()
+	}
+
+	#[allow(non_snake_case)]
+	pub fn classify_biome_on_planet_surface(
+		planet: &Planet,
+		mean_solar_flux_Wpm2: f64,
+		altitude_m: f64,
+		mean_temp_C: f64,
+		temp_var_C: f64,
+		annual_precip_mm: f64
+	) -> Biome {
+		todo!()
+	}
+}
+
 /// Unit tests
 #[cfg(test)]
 mod unit_tests {
