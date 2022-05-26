@@ -4,7 +4,8 @@ import net.plantabyte.biomes.Biome;
 
 public class PortHelper {
 	public static void main(String[] args){
-		printRustEnum();
+		//printRustEnum();
+		printCppEnum();
 	}
 
 	private static void printRustEnum() {
@@ -248,7 +249,72 @@ mod unit_tests {
 
 		System.out.println(sb.toString());
 	}
-	
+
+	private static void printCppEnum(){
+		System.out.println("//===== C++ =====");
+		var sb = new StringBuilder();
+		sb.append("""
+#include <cstdint>
+#include <string.h>
+#include <vector>
+
+class Biome {
+	private:
+		uint8_t _bcode;
+		const char* _name;
+		const char* _common_name;
+		const char* _technical_name;
+		static std::vector<Biome*> _values;
+	public:
+""");
+		for(var b : Biome.values()){
+			sb.append("\t\tstatic const Biome ").append(b.name()).append(";\n");
+		}
+		sb.append("""
+	private:
+		Biome(uint8_t bcode, const char* name, const char* common_name, const char* technical_name){
+			this->_bcode = bcode;
+			this->_name = name;
+			this->_common_name = common_name;
+			this->_technical_name = technical_name;
+			this->_values.push_back(this);
+		}
+	public:
+		uint8_t bcode() const {
+			return _bcode;
+		}
+		const char* name() const {
+			return _name;
+		}
+		const char* common_name() const {
+			return _common_name;
+		}
+		const char* technical_name() const {
+			return _technical_name;
+		}
+		static const std::vector<Biome*> values(){
+			return _values;
+		}
+		static const Biome& from_bcode(uint8_t bcode){
+			switch(bcode) {
+""");
+		for(var b : Biome.values()){
+			sb.append("\t\t\t\tcase ").append(b.getBiomeCode()).append(": return Biome::").append(b.name()).append(";\n");
+		}
+		sb.append("\t\t\t\tdefault: return Biome::UNKNOWN;\n\t\t\t}\n\t\t}");
+		sb.append("};\nstd::vector<Biome*> Biome::_values = std::vector<Biome*>{};\n");
+
+		for(var b : Biome.values()){
+			sb.append("const Biome Biome::").append(b.name()).append(" = Biome(").append(b.getBiomeCode())
+					.append(", \"").append(b.name()).append("\"")
+					.append(", \"").append(b.getCommonName()).append("\"")
+					.append(", \"").append(b.getTechnicalName()).append("\"").append(");\n");
+		}
+
+		//
+		System.out.println(sb.toString());
+	}
+
 	private static String commentPrefix(String text, String prefix){
 		return prefix+text.stripTrailing()
 				.replace("\r\n", "\n")
