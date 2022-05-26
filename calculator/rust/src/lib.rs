@@ -241,12 +241,12 @@ impl Biome {
 		get_data(self).technical_name
 	}
 }
+impl From<u8> for Biome {
 	/// Converts from Plantabyte biome code (as u8) to the corresponding Biome enum
 	/// # Parameters
 	/// * **bcode: u8** - Plantabyte biome code
 	/// # Returns
 	/// Returns the corresponding Biome enum
-impl From<u8> for Biome {
 	fn from(bcode: u8) -> Biome {
 		match bcode {
 			0 => Biome::Unknown,
