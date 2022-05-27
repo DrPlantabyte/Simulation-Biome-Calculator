@@ -1,5 +1,12 @@
-use std::str::Split;
+
+use std::io;
+use std::io::prelude::*;
+use std::fs::File;
+use flate2::read::GzDecoder;
+use std::collections::HashMap;
+use std::str::{FromStr, Split};
 use biomecalculator::*;
+use biomecalculator::classifier::classify_biome;
 
 #[test]
 fn api_test1() {
@@ -17,20 +24,11 @@ fn api_test2() {
 }
 
 #[allow(non_snake_case)]
+#[allow(unused_variables)]
 #[test]
 fn classify_biomes_with_earth_ref() {
-	use std::io;
-	use std::io::prelude::*;
-	use std::fs::File;
-	use flate2::read::GzDecoder;
-	use std::collections::HashMap;
 	let filepath = "../java/net.plantabyte.biomes.test/resources/Earth_ref_table.csv.gz";
-	let f = File::open(filepath).unwrap();
-	let mut gz = GzDecoder::new(f);
-	let mut csv = String::new();
-	gz.read_to_string(&mut csv).unwrap();
-	//csv.truncate(500);
-	//println!("\n\n\n{}\n\n\n", csv);
+
 	/*
 tope 4 rows of CSV are:
 ,gravity_m_per_s2,mean_surface_pressure_kPa,toa_solar_flux_Wpm2,mean_solar_flux_Wpm2,altitude_m,mean_temp_C,temp_var_C,annual_precip_mm,exoplanet,biome
@@ -40,34 +38,60 @@ tope 4 rows of CSV are:
 
 	 */
 	let mut header = true;
-	let mut index_gravity_m_per_s2: isize = -1;
-	let mut index_mean_surface_pressure_kPa: isize = -1;
-	let mut index_toa_solar_flux_Wpm2: isize = -1;
-	let mut index_mean_solar_flux_Wpm2: isize = -1;
-	let mut index_altitude_m: isize = -1;
-	let mut index_mean_temp_C: isize = -1;
-	let mut index_annual_precip_mm: isize = -1;
-	let mut index_exoplanet: isize = -1;
-	let mut index_biome: isize = -1;
-	for row in csv.split("\n"){
-		let cells = row.split(",");
+	let mut index_gravity_m_per_s2: usize = 0;
+	let mut index_mean_surface_pressure_kPa: usize = 0;
+	let mut index_toa_solar_flux_Wpm2: usize = 0;
+	let mut index_mean_solar_flux_Wpm2: usize = 0;
+	let mut index_altitude_m: usize = 0;
+	let mut index_mean_temp_C: usize = 0;
+	let mut index_temp_var_C: usize = 0;
+	let mut index_annual_precip_mm: usize = 0;
+	let mut index_exoplanet: usize = 0;
+	let mut index_biome: usize = 0;
+	let rows = extract_csv(filepath);
+	for row in rows {
+		let cells = row.split(",").collect::<Vec<&str>>();
 		if header {
-			index_gravity_m_per_s2 = index_in_split()
-			todo!();
+			index_gravity_m_per_s2 = index_of("gravity_m_per_s2", &cells).unwrap();
+			index_mean_surface_pressure_kPa = index_of("mean_surface_pressure_kPa", &cells).unwrap();
+			index_toa_solar_flux_Wpm2 = index_of("toa_solar_flux_Wpm2", &cells).unwrap();
+			index_mean_solar_flux_Wpm2 = index_of("mean_solar_flux_Wpm2", &cells).unwrap();
+			index_altitude_m = index_of("altitude_m", &cells).unwrap();
+			index_mean_temp_C = index_of("mean_temp_C", &cells).unwrap();
+			index_temp_var_C = index_of("temp_var_C", &cells).unwrap();
+			index_annual_precip_mm = index_of("annual_precip_mm", &cells).unwrap();
+			index_exoplanet = index_of("exoplanet", &cells).unwrap();
+			index_biome = index_of("biome", &cells).unwrap();
+			header = false;
 		} else {
-			todo!();
+			let gravity_m_per_s2 = f64::from_str(cells[index_gravity_m_per_s2]).unwrap();
+			let mean_surface_pressure_kPa = f64::from_str(cells[index_mean_surface_pressure_kPa]).unwrap();
+			let toa_solar_flux_Wpm2 = f64::from_str(cells[index_toa_solar_flux_Wpm2]).unwrap();
+			let mean_solar_flux_Wpm2 = f64::from_str(cells[index_mean_solar_flux_Wpm2]).unwrap();
+			let altitude_m = f64::from_str(cells[index_altitude_m]).unwrap();
+			let mean_temp_C = f64::from_str(cells[index_mean_temp_C]).unwrap();
+			let temp_var_C = f64::from_str(cells[index_temp_var_C]).unwrap();
+			let annual_precip_mm = f64::from_str(cells[index_annual_precip_mm]).unwrap();
+			let exoplanet = bool::from_str(cells[index_exoplanet]).unwrap();
+			let biome = Biome::from(u8::from_str(cells[index_biome]).unwrap());
+			//
+			let calculated_biome = classify_biome(mean_solar_flux_Wpm2, mean_surface_pressure_kPa, altitude_m, mean_temp_C, temp_var_C, annual_precip_mm);
+			assert_eq!(biome, calculated_biome);
 		}
 	}
-	todo!()
+}
+fn extract_csv(filepath: &str) -> Vec<&str> {
+	let f = File::open(filepath).unwrap();
+	let mut gz = GzDecoder::new(f);
+	let mut csv = String::new();
+	gz.read_to_string(&mut csv).unwrap();
+	//csv.truncate(500);
+	//println!("\n\n\n{}\n\n\n", csv);
+	return csv.split("\n").collect::<Vec<&str>>(); // .split method returns an iterator, not an array!
 }
 
-fn index_in_split(target: &str, split: Split<&str>) -> Option<usize>{
-	for i in 0..split.count(){
-		if split[i] == target{
-			return Some(i);
-		}
-	}
-	return None;
+fn index_of(target: &str, array: &Vec<&str>) -> Option<usize>{
+	return array.iter().position(|x| *x == target);
 }
 
 #[test]
