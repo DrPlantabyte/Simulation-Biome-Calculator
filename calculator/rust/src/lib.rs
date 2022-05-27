@@ -414,6 +414,66 @@ pub mod classifier {
 		exoplanet: bool
 	}
 
+	const REF_CLASSES: [Biome; 9] = [Biome::Wetland, Biome::Jungle, Biome::SeasonalForest,
+		Biome::NeedleleafForest, Biome::Grassland, Biome::DesertShrubland, Biome::Tundra,
+		Biome::Barren, Biome::SandSea];
+	const REF_POINTS: [[[f32; 4]; 5]; 9] = [ // size = [9][5][4]
+//// wetlands
+		[[0.97589505f32, 0.6692817f32, 0.09676683f32, 0.42183435f32],
+			[0.2872733f32, 0.5562218f32, 0.21704593f32, 0.3098737f32],
+			[0.95833284f32, 0.6877248f32, 0.12377492f32, 0.2995282f32],
+			[0.6171483f32, 0.47020113f32, 0.4836682f32, 0.22195342f32],
+			[0.81850535f32, 0.60123855f32, 0.25867933f32, 0.31303504f32]],
+//// jungle
+		[[0.7665621f32, 0.5300055f32, 0.2408872f32, 0.3123359f32],
+			[0.99121696f32, 0.6713649f32, 0.07588506f32, 0.40304184f32],
+			[0.98553646f32, 0.67212886f32, 0.08356771f32, 0.3337861f32],
+			[0.9209426f32, 0.59560406f32, 0.15855226f32, 0.3750781f32],
+			[0.99228674f32, 0.67052644f32, 0.07420062f32, 0.49766815f32]],
+//// seasonalf32orest
+		[[0.82307386f32, 0.54830164f32, 0.28397045f32, 0.32422626f32],
+			[0.95406234f32, 0.68983954f32, 0.16054682f32, 0.29840717f32],
+			[0.5337313f32, 0.44197488f32, 0.4220576f32, 0.24119267f32],
+			[0.70596063f32, 0.5029748f32, 0.37620285f32, 0.26919958f32],
+			[0.65009725f32, 0.41467762f32, 0.53735024f32, 0.24624129f32]],
+//// needleleaff32orest
+		[[0.8442506f32, 0.513412f32, 0.23853904f32, 0.31593102f32],
+			[0.4755671f32, 0.42182055f32, 0.32860836f32, 0.25947723f32],
+			[0.69879943f32, 0.5263777f32, 0.3583926f32, 0.24800086f32],
+			[0.6385724f32, 0.44265494f32, 0.30205786f32, 0.41645652f32],
+			[0.59855306f32, 0.41948298f32, 0.4608879f32, 0.21030518f32]],
+//// grassland
+		[[0.9590115f32, 0.69129807f32, 0.14321554f32, 0.33431706f32],
+			[0.64463437f32, 0.51307285f32, 0.6764352f32, 0.17131203f32],
+			[0.75970644f32, 0.53838587f32, 0.34264302f32, 0.25237092f32],
+			[0.9574419f32, 0.76865923f32, 0.21147878f32, 0.2162868f32],
+			[0.7787093f32, 0.64991206f32, 0.49281284f32, 0.1717132f32]],
+//// desert
+		[[0.8768907f32, 0.68539584f32, 0.30395174f32, 0.18175352f32],
+			[0.85951805f32, 0.75583154f32, 0.43008733f32, 0.13515931f32],
+			[0.9133944f32, 0.80276865f32, 0.33543584f32, 0.15386288f32],
+			[0.95464563f32, 0.8058968f32, 0.2042541f32, 0.1794926f32],
+			[0.7509371f32, 0.62957406f32, 0.44375542f32, 0.1542665f32]],
+//// tundra
+		[[0.4441414f32, 0.30920148f32, 0.4959661f32, 0.24957538f32],
+			[0.4513571f32, 0.23461857f32, 0.732274f32, 0.2127717f32],
+			[0.6739347f32, 0.34742635f32, 0.41046205f32, 0.26215446f32],
+			[0.577827f32, 0.32734275f32, 0.62989986f32, 0.22067626f32],
+			[0.37011942f32, 0.15006503f32, 0.65958476f32, 0.18708763f32]],
+//// barren
+		[[0.29481938f32, 0.09472984f32, 0.59135556f32, 0.06860657f32],
+			[0.86539465f32, 0.7506361f32, 0.37203112f32, 0.11493613f32],
+			[0.664666f32, 0.6056427f32, 0.46542227f32, 0.14238815f32],
+			[0.6938545f32, 0.43799615f32, 0.30913985f32, 0.2867542f32],
+			[0.8466273f32, 0.53237015f32, 0.44636855f32, 0.16200702f32]],
+//// sandsea
+		[[0.82119286f32, 0.48783484f32, 0.44511366f32, 0.10902377f32],
+			[0.9354581f32, 0.8444746f32, 0.28542006f32, 0.076657f32],
+			[0.75143087f32, 0.70467633f32, 0.602095f32, 0.09906711f32],
+			[0.8729486f32, 0.81519806f32, 0.4026484f32, 0.0783796f32],
+			[0.24349129f32, 0.7866096f32, 0.45044297f32, 0.11177942f32]]
+	];
+
 	#[allow(non_snake_case)]
 	pub fn classify_biome(
 		mean_solar_flux_Wpm2: f64,
@@ -423,7 +483,108 @@ pub mod classifier {
 		temp_var_C: f64,
 		annual_precip_mm: f64
 	) -> Biome {
-		todo!()
+		let mut biome_code: Biome = Biome::Unknown;
+		//// constants and variables
+		let min_rain_limit_mm = 110.;
+		let max_rain_limit_mm = 6000.; // too much rain and we'll call it a wetland instead of a jungle
+		let photic_zone_min_solar_flux_Wpm2 = 35.;
+		let wave_disruption_depth_m = -6.; // corals, seagrasses, kelps, etc cannot grow above this depth
+		let epsilon_water = 0.013333;  // Absorption per meter (150m == 1% transmission (0.01 = 10^(-epsilon*150))
+		let benthic_solar_flux = mean_solar_flux_Wpm2 * f64::powf(10.,epsilon_water * altitude_m); // <- note: altitude is negative here
+		let boiling_point_C = boiling_point(pressure_kPa);
+		//// terrestrial biomes
+		if(altitude_m > 0.) {
+			if(annual_precip_mm > max_rain_limit_mm) {
+				biome_code = Biome::Wetland;
+			} else {
+				////// rescale to normalize so that distance calcs aren't biased
+				let mut closest_dist = 1e35;
+				let norm_sol_flux = rescale(mean_solar_flux_Wpm2, 0.0, 800.);
+				let norm_mtemp = rescale(mean_temp_C, -20., 50.);
+				let norm_vtemp = rescale(temp_var_C, 0., 35.);
+				let norm_precip = rescale(f64::sqrt(annual_precip_mm), 0.0, 75.);
+				for bclass in 0..9 as usize{
+					for refpt in 0..5 as usize{
+						let d = dist4fd(REF_POINTS[bclass][refpt][0], REF_POINTS[bclass][refpt][1],
+										   REF_POINTS[bclass][refpt][2], REF_POINTS[bclass][refpt][3],
+										   norm_sol_flux, norm_mtemp, norm_vtemp, norm_precip
+						);
+						if(d < closest_dist) {
+							closest_dist = d;
+							biome_code = REF_CLASSES[bclass];
+						}
+					}
+				}
+			}
+			if(biome_code == Biome::Jungle && temp_var_C > 6.0) {
+				// too much variation for jungle, actually grassland
+				biome_code = Biome::Grassland;
+			}
+		} else {
+			//// marine biomes
+			if(benthic_solar_flux >= photic_zone_min_solar_flux_Wpm2) {
+				// sea floor in photic zone
+				if(mean_temp_C > 5. && mean_temp_C < 20. && altitude_m < wave_disruption_depth_m) {
+					biome_code = Biome::SeaForest;
+				} else if(mean_temp_C >= 20. && mean_temp_C < 30. && altitude_m < wave_disruption_depth_m) {
+					biome_code = Biome::TropicalReef;
+				} else {
+					biome_code = Biome::RockyShallows;
+				}
+			} else if(altitude_m > -200.) {
+				biome_code = Biome::ShallowOcean;
+			} else {
+				biome_code = Biome::DeepOcean;
+			}
+		}
+		//// extreme biomes
+		if(altitude_m > 0.) {
+			if(annual_precip_mm < min_rain_limit_mm) {
+				if(mean_temp_C > 15.) {
+					biome_code = Biome::SandSea;
+				} else if(mean_temp_C <= 15.) {
+					biome_code = Biome::Barren;
+				}
+			}
+			if(mean_temp_C >= boiling_point_C) {
+				biome_code = Biome::Moonscape;
+			}
+		} else {
+			if(mean_temp_C >= boiling_point_C) {
+				biome_code = Biome::BoilingSea;
+			}
+		}
+		if((mean_temp_C < boiling_point_C) && (mean_temp_C + temp_var_C) < 0.) {
+			biome_code = Biome::IceSheet;
+		}
+		//// Done!
+		return biome_code;
+	}
+
+	fn rescale(x: f64, xmin: f64, xmax: f64) -> f64{
+		return (x - xmin) / (xmax - xmin);
+	}
+
+	fn dist4fd(a1: f32, b1: f32, c1: f32, d1: f32, a2: f64, b2: f64, c2: f64, d2: f64) -> f64 {
+		let da = a2 - a1 as f64;
+		let db = b2 - b1 as f64;
+		let dc = c2 - c1 as f64;
+		let dd = d2 - d1 as f64;
+		return f64::sqrt(da * da + db * db + dc * dc + dd * dd);
+	}
+
+	fn boiling_point(pressure_kPa: f64) -> f64{
+		let ln_mbar = f64::ln(pressure_kPa * 10.);
+		let x = ln_mbar;
+		let x2 = x * ln_mbar;
+		let x3 = x2 * ln_mbar;
+		let lp = 0.051769 * x3 + 0.65545 * x2 + 10.387 * x - 10.619;
+		let hp = 0.47092 * x3 - 8.2481 * x2 + 75.520 * x - 183.98;
+		if(pressure_kPa< 101.3){
+			return lp;
+		}else{
+			return hp;
+		}
 	}
 
 	#[allow(non_snake_case)]

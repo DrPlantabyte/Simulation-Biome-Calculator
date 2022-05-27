@@ -48,7 +48,11 @@ tope 4 rows of CSV are:
 	let mut index_annual_precip_mm: usize = 0;
 	let mut index_exoplanet: usize = 0;
 	let mut index_biome: usize = 0;
-	let rows = extract_csv(filepath);
+	let f = File::open(filepath).unwrap();
+	let mut gz = GzDecoder::new(f);
+	let mut csv = String::new();
+	gz.read_to_string(&mut csv).unwrap();
+	let rows = csv.split("\n").collect::<Vec<&str>>(); // .split method returns an iterator, not an array!
 	for row in rows {
 		let cells = row.split(",").collect::<Vec<&str>>();
 		if header {
@@ -79,15 +83,6 @@ tope 4 rows of CSV are:
 			assert_eq!(biome, calculated_biome);
 		}
 	}
-}
-fn extract_csv(filepath: &str) -> Vec<&str> {
-	let f = File::open(filepath).unwrap();
-	let mut gz = GzDecoder::new(f);
-	let mut csv = String::new();
-	gz.read_to_string(&mut csv).unwrap();
-	//csv.truncate(500);
-	//println!("\n\n\n{}\n\n\n", csv);
-	return csv.split("\n").collect::<Vec<&str>>(); // .split method returns an iterator, not an array!
 }
 
 fn index_of(target: &str, array: &Vec<&str>) -> Option<usize>{
