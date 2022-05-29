@@ -402,16 +402,25 @@ impl Display for Biome {
 
 pub mod classifier {
 	use crate::Biome;
+	use std::hash::{Hash, Hasher};
 
 	#[allow(non_snake_case)]
+	#[derive(Copy, Clone, Debug)]
+	#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 	pub struct Planet {
-		planet_mass_kg: f64,
-		planet_mean_radius_km: f64,
-		toa_solar_flux_Wpm2: f64,
-		axis_tilt_deg: f64,
-		tidal_lock: bool,
-		mean_surface_pressure_kPa: f64,
-		exoplanet: bool
+		pub mass_kg: f64,
+		pub mean_radius_km: f64,
+		pub toa_solar_flux_Wpm2: f64,
+		pub axis_tilt_deg: f64,
+		pub tidal_lock: bool,
+		pub mean_surface_pressure_kPa: f64,
+		pub exoplanet: bool
+	}
+	impl Planet {
+		pub const EARTH: Planet = Planet{mass_kg: 5.972e24, mean_radius_km: 6.371e3,
+			toa_solar_flux_Wpm2:
+		1373., axis_tilt_deg: 23., mean_surface_pressure_kPa: 101.3, tidal_lock: false,
+			exoplanet: false};
 	}
 
 	const REF_CLASSES: [Biome; 9] = [Biome::Wetland, Biome::Jungle, Biome::SeasonalForest,
