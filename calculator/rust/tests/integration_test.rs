@@ -53,7 +53,15 @@ tope 4 rows of CSV are:
 	let mut csv = String::new();
 	gz.read_to_string(&mut csv).unwrap();
 	let rows = csv.split("\n").collect::<Vec<&str>>(); // .split method returns an iterator, not an array!
+	let mut row_number = 0;
 	for row in rows {
+		if row.trim().len() == 0{
+			continue;
+		}
+		row_number += 1;
+		if row_number < 10 {
+			println!("#{}\t{}", row_number, row);
+		}
 		let cells = row.split(",").collect::<Vec<&str>>();
 		if header {
 			index_gravity_m_per_s2 = index_of("gravity_m_per_s2", &cells).unwrap();
@@ -76,17 +84,24 @@ tope 4 rows of CSV are:
 			let mean_temp_C = f64::from_str(cells[index_mean_temp_C]).unwrap();
 			let temp_var_C = f64::from_str(cells[index_temp_var_C]).unwrap();
 			let annual_precip_mm = f64::from_str(cells[index_annual_precip_mm]).unwrap();
-			let exoplanet = bool::from_str(cells[index_exoplanet]).unwrap();
-			let biome = Biome::from(u8::from_str(cells[index_biome]).unwrap());
+			let exoplanet = bool::from_str(cells[index_exoplanet].trim().to_lowercase().as_str())
+				.unwrap();
+			let biome = Biome::from(u8::from_str(cells[index_biome].trim()).unwrap());
 			//
 			let calculated_biome = classify_biome(mean_solar_flux_Wpm2, mean_surface_pressure_kPa, altitude_m, mean_temp_C, temp_var_C, annual_precip_mm);
-			assert_eq!(biome, calculated_biome);
+			assert_eq!(biome, calculated_biome, "Failed to correctly predict biome {}, got {} \
+			instead. Parameters: gravity_m_per_s2 = {}; mean_surface_pressure_kPa = {}; \
+			toa_solar_flux_Wpm2 = {}; mean_solar_flux_Wpm2 = {}; altitude_m = {}; \
+			 mean_temp_C = {}; temp_var_C = {}; annual_precip_mm = {}; exoplanet = {}; biome = {}",
+			biome, calculated_biome, gravity_m_per_s2, mean_surface_pressure_kPa,
+					   toa_solar_flux_Wpm2, mean_solar_flux_Wpm2, altitude_m, mean_temp_C,
+					   temp_var_C, annual_precip_mm, exoplanet, biome);
 		}
 	}
 }
 
 fn index_of(target: &str, array: &Vec<&str>) -> Option<usize>{
-	return array.iter().position(|x| *x == target);
+	return array.iter().position(|x| x.trim() == target.trim());
 }
 
 #[test]
