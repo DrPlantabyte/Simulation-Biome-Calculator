@@ -671,7 +671,53 @@ pub mod classifier {
 		latitude: f64,
 		longitude: f64
 	) -> Biome {
-		todo!()
+		let pi = std::f64::consts::PI;
+		let two_over_pi = 0.5 * pi;
+		let deg2Rad = pi / 180.;
+		let radius_m = (planet_mean_radius_km * 1000) + altitude_m;
+		let mut above_sealevel_m = altitude_m;
+		if above_sealevel_m < 0. {
+			above_sealevel_m = 0.;
+		}
+		let pressure_kPa = pressureAtDryAltitude(mean_temp_C, above_sealevel_m);
+		let epsilon_air = 3.46391e-5; // Absorption per kPa (1360 = 1371 * 10^(-eps * 101) );
+		let max_flux = toa_solar_flux_Wpm2 * f64::powf(10., -epsilon_air * pressure_kPa);
+		let mut mean_solar_flux_Wpm2 = 0f64;
+		if tidal_lock {
+			mean_solar_flux_Wpm2 =
+				max_flux * two_over_pi * f64::cos(latitude) * clip(f64::cos(longitude), 0, 1);
+		} else {
+			mean_solar_flux_Wpm2 = max_flux * two_over_pi * 0.5 * (
+				clip(f64::cos(deg2Rad * (latitude - axis_tilt_deg)), 0, 1) + clip(
+					f64::cos(deg2Rad * (latitude + axis_tilt_deg)), 0, 1));
+		}
+		//// if doing expoplanet calcualtion, first check astronomical biomes
+		let min_neutron_star_density_Tpm3 = 1e14; // tons per cubic meter (aka g/cc)
+		let max_neutron_star_density_Tpm3 = 2e16; // tons per cubic meter (aka g/cc)
+		let planet_volume_m3 = 4.0/3.0*pi*radius_m*radius_m*radius_m;
+		let planet_density_Tpm3 = planet_mass_kg / 1000. / planet_volume_m3;
+		let red_dwarf_min_mass_kg = 1.2819e29;
+		if exoplanet { // try to detect extreme conditions of a non-goldilocks-zone planet
+			if planet_density_Tpm3 > max_neutron_star_density_Tpm3 {
+				////BLACK HOLE ! 
+				return Biome.EventHorizon;
+			}
+			if planet_density_Tpm3 >= min_neutron_star_density_Tpm3 {
+				////neutron star ! 
+				return Biome.NeutronStar;}
+			if planet_mass_kg >= red_dwarf_min_mass_kg {
+				////big enough to spontaneously start thermonuclear fusion and become a star 
+				return Biome.Star;
+			}
+		}
+		return classify_biome_on_planet_surface(
+			planet,
+			mean_solar_flux_Wpm2,
+			altitude_m,
+			mean_temp_C,
+			temp_var_C,
+			annual_precip_mm
+		);
 	}
 
 	#[allow(non_snake_case)]
