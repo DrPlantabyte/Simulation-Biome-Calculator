@@ -105,7 +105,6 @@ fn index_of(target: &str, array: &Vec<&str>) -> Option<usize>{
 }
 
 #[allow(non_snake_case)]
-#[allow(unused_variables)]
 #[test]
 fn classify_biomes_on_planet() {
 	let filepath = "../java/net.plantabyte.biomes.test/resources/planet_refs.csv.gz";
@@ -183,15 +182,14 @@ fn classify_biomes_on_planet() {
 			);
 			assert_eq!(biome, calculated_biome, "Failed to correctly predict biome {} on planet \
 			{:?}, got {} instead. \
-			Parameters: gravity_m_per_s2 = {}; mean_surface_pressure_kPa = {}; \
-			toa_solar_flux_Wpm2 = {}; mean_solar_flux_Wpm2 = {}; altitude_m = {}; \
+			Parameters: planet_mass_kg = {}; planet_mean_radius_km={}; axis_tilt_deg = {}; mean_surface_pressure_kPa = {}; \
+			toa_solar_flux_Wpm2 = {}; latitude = {}; longitude = {}; altitude_m = {}; \
 			 mean_temp_C = {}; temp_var_C = {}; annual_precip_mm = {}; exoplanet = {}; biome = {}",
-					   biome, planet, calculated_biome, gravity_m_per_s2, mean_surface_pressure_kPa,
-					   toa_solar_flux_Wpm2, mean_solar_flux_Wpm2, altitude_m, mean_temp_C,
+					   biome, planet, calculated_biome, planet_mass_kg, planet_mean_radius_km, axis_tilt_deg,
+					   mean_surface_pressure_kPa, toa_solar_flux_Wpm2, latitude, longitude, altitude_m, mean_temp_C,
 					   temp_var_C, annual_precip_mm, exoplanet, biome);
 		}
 	}
-	todo!()
 }
 
 #[test]

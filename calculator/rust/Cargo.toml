@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 # macros for unit-testing workaround for lack of Rust support for enums of const values
 variant_count = "1.1"
+ordered-float="3.0"
 # optional deps
 serde = { version = "1.0", optional = true, features = ["derive"] }
 
