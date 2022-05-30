@@ -423,15 +423,21 @@ pub mod classifier {
 			toa_solar_flux_Wpm2:
 		1373., axis_tilt_deg: 23., mean_surface_pressure_kPa: 101.3, tidal_lock: false,
 			exoplanet: false};
+
+		fn to_f64_array(&self) -> [f64; 7]{
+			return [self.mass_kg, self.mean_radius_km, self.toa_solar_flux_Wpm2,
+				self.mean_surface_pressure_kPa, self.axis_tilt_deg,
+				self.tidal_lock as i64 as f64, self.exoplanet as i64 as f64];
+		}
 	}
 	impl Hash for Planet {
 		// Note: not a particularly effective hash, but good enough to be usable
 		fn hash<H: Hasher>(&self, state: &mut H) {
-			let hashable = OrderedFloat(1e-20 * self.mass_kg + 1e-3 * self.mean_radius_km
-				+ 1e-3 * self.toa_solar_flux_Wpm2 + 0.1 * self.axis_tilt_deg + 1e-2 * self.mean_surface_pressure_kPa
-				+ 101. * self.tidal_lock as i64 as f64 + 11. * self.exoplanet as i64 as f64
-			);
-			hashable.hash(state);
+			let vals = self.to_f64_array();
+			for v in vals {
+				let hasher = OrderedFloat(v);
+				hasher.hash(state);
+			}
 		}
 	}
 	impl PartialEq for Planet {
@@ -454,12 +460,8 @@ pub mod classifier {
 	}
 	impl Ord for Planet{
 		fn cmp(&self, other: &Self) -> Ordering {
-			let self_ords = [self.mass_kg, self.mean_radius_km, self.toa_solar_flux_Wpm2,
-				self.mean_surface_pressure_kPa, self.axis_tilt_deg,
-				self.tidal_lock as i64 as f64, self.exoplanet as i64 as f64];
-			let other_ords = [other.mass_kg, other.mean_radius_km, other.toa_solar_flux_Wpm2,
-				other.mean_surface_pressure_kPa, other.axis_tilt_deg,
-				other.tidal_lock as i64 as f64, other.exoplanet as i64 as f64];
+			let self_ords = self.to_f64_array();
+			let other_ords = other.to_f64_array();
 			for i in 0..7 {
 				let s = OrderedFloat(self_ords[i]);
 				let o = OrderedFloat(other_ords[i]);
