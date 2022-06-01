@@ -567,8 +567,8 @@ pub mod classifier {
 		let benthic_solar_flux = mean_solar_flux_Wpm2 * f64::powf(10.,epsilon_water * altitude_m); // <- note: altitude is negative here
 		let boiling_point_C = boiling_point(pressure_kPa);
 		//// terrestrial biomes
-		if(altitude_m > 0.) {
-			if(annual_precip_mm > max_rain_limit_mm) {
+		if altitude_m > 0. {
+			if annual_precip_mm > max_rain_limit_mm {
 				biome_code = Biome::Wetland;
 			} else {
 				////// rescale to normalize so that distance calcs aren't biased
@@ -583,82 +583,56 @@ pub mod classifier {
 										   REF_POINTS[bclass][refpt][2], REF_POINTS[bclass][refpt][3],
 										   norm_sol_flux, norm_mtemp, norm_vtemp, norm_precip
 						);
-						if(d < closest_dist) {
+						if d < closest_dist {
 							closest_dist = d;
 							biome_code = REF_CLASSES[bclass];
 						}
 					}
 				}
 			}
-			if(biome_code == Biome::Jungle && temp_var_C > 6.0) {
+			if biome_code == Biome::Jungle && temp_var_C > 6.0 {
 				// too much variation for jungle, actually grassland
 				biome_code = Biome::Grassland;
 			}
 		} else {
 			//// marine biomes
-			if(benthic_solar_flux >= photic_zone_min_solar_flux_Wpm2) {
+			if benthic_solar_flux >= photic_zone_min_solar_flux_Wpm2 {
 				// sea floor in photic zone
-				if(mean_temp_C > 5. && mean_temp_C < 20. && altitude_m < wave_disruption_depth_m) {
+				if mean_temp_C > 5. && mean_temp_C < 20. && altitude_m < wave_disruption_depth_m {
 					biome_code = Biome::SeaForest;
-				} else if(mean_temp_C >= 20. && mean_temp_C < 30. && altitude_m < wave_disruption_depth_m) {
+				} else if mean_temp_C >= 20. && mean_temp_C < 30. && altitude_m < wave_disruption_depth_m {
 					biome_code = Biome::TropicalReef;
 				} else {
 					biome_code = Biome::RockyShallows;
 				}
-			} else if(altitude_m > -200.) {
+			} else if altitude_m > -200. {
 				biome_code = Biome::ShallowOcean;
 			} else {
 				biome_code = Biome::DeepOcean;
 			}
 		}
 		//// extreme biomes
-		if(altitude_m > 0.) {
-			if(annual_precip_mm < min_rain_limit_mm) {
-				if(mean_temp_C > 15.) {
+		if altitude_m > 0. {
+			if annual_precip_mm < min_rain_limit_mm {
+				if mean_temp_C > 15. {
 					biome_code = Biome::SandSea;
-				} else if(mean_temp_C <= 15.) {
+				} else if mean_temp_C <= 15. {
 					biome_code = Biome::Barren;
 				}
 			}
-			if(mean_temp_C >= boiling_point_C) {
+			if mean_temp_C >= boiling_point_C {
 				biome_code = Biome::Moonscape;
 			}
 		} else {
-			if(mean_temp_C >= boiling_point_C) {
+			if mean_temp_C >= boiling_point_C {
 				biome_code = Biome::BoilingSea;
 			}
 		}
-		if((mean_temp_C < boiling_point_C) && (mean_temp_C + temp_var_C) < 0.) {
+		if (mean_temp_C < boiling_point_C) && (mean_temp_C + temp_var_C) < 0. {
 			biome_code = Biome::IceSheet;
 		}
 		//// Done!
 		return biome_code;
-	}
-
-	fn rescale(x: f64, xmin: f64, xmax: f64) -> f64{
-		return (x - xmin) / (xmax - xmin);
-	}
-
-	fn dist4fd(a1: f32, b1: f32, c1: f32, d1: f32, a2: f64, b2: f64, c2: f64, d2: f64) -> f64 {
-		let da = a2 - a1 as f64;
-		let db = b2 - b1 as f64;
-		let dc = c2 - c1 as f64;
-		let dd = d2 - d1 as f64;
-		return f64::sqrt(da * da + db * db + dc * dc + dd * dd);
-	}
-
-	fn boiling_point(pressure_kPa: f64) -> f64{
-		let ln_mbar = f64::ln(pressure_kPa * 10.);
-		let x = ln_mbar;
-		let x2 = x * ln_mbar;
-		let x3 = x2 * ln_mbar;
-		let lp = 0.051769 * x3 + 0.65545 * x2 + 10.387 * x - 10.619;
-		let hp = 0.47092 * x3 - 8.2481 * x2 + 75.520 * x - 183.98;
-		if(pressure_kPa< 101.3){
-			return lp;
-		}else{
-			return hp;
-		}
 	}
 
 	#[allow(non_snake_case)]
@@ -674,40 +648,41 @@ pub mod classifier {
 		let pi = std::f64::consts::PI;
 		let two_over_pi = 0.5 * pi;
 		let deg2Rad = pi / 180.;
-		let radius_m = (planet_mean_radius_km * 1000) + altitude_m;
+		let radius_m = (planet.mean_radius_km * 1000.) + altitude_m;
 		let mut above_sealevel_m = altitude_m;
 		if above_sealevel_m < 0. {
 			above_sealevel_m = 0.;
 		}
-		let pressure_kPa = pressureAtDryAltitude(mean_temp_C, above_sealevel_m);
+		let pressure_kPa = pressure_at_dry_altitude(planet, mean_temp_C, above_sealevel_m);
 		let epsilon_air = 3.46391e-5; // Absorption per kPa (1360 = 1371 * 10^(-eps * 101) );
-		let max_flux = toa_solar_flux_Wpm2 * f64::powf(10., -epsilon_air * pressure_kPa);
+		let max_flux = planet.toa_solar_flux_Wpm2 * f64::powf(10., -epsilon_air * pressure_kPa);
 		let mut mean_solar_flux_Wpm2 = 0f64;
-		if tidal_lock {
+		let axis_tilt_deg = planet.axis_tilt_deg;
+		if planet.tidal_lock {
 			mean_solar_flux_Wpm2 =
-				max_flux * two_over_pi * f64::cos(latitude) * clip(f64::cos(longitude), 0, 1);
+				max_flux * two_over_pi * f64::cos(latitude) * clip(f64::cos(longitude), 0., 1.);
 		} else {
 			mean_solar_flux_Wpm2 = max_flux * two_over_pi * 0.5 * (
-				clip(f64::cos(deg2Rad * (latitude - axis_tilt_deg)), 0, 1) + clip(
-					f64::cos(deg2Rad * (latitude + axis_tilt_deg)), 0, 1));
+				clip(f64::cos(deg2Rad * (latitude - axis_tilt_deg)), 0., 1.) + clip(
+					f64::cos(deg2Rad * (latitude + axis_tilt_deg)), 0., 1.));
 		}
 		//// if doing expoplanet calcualtion, first check astronomical biomes
 		let min_neutron_star_density_Tpm3 = 1e14; // tons per cubic meter (aka g/cc)
 		let max_neutron_star_density_Tpm3 = 2e16; // tons per cubic meter (aka g/cc)
 		let planet_volume_m3 = 4.0/3.0*pi*radius_m*radius_m*radius_m;
-		let planet_density_Tpm3 = planet_mass_kg / 1000. / planet_volume_m3;
+		let planet_density_Tpm3 = planet.mass_kg / 1000. / planet_volume_m3;
 		let red_dwarf_min_mass_kg = 1.2819e29;
-		if exoplanet { // try to detect extreme conditions of a non-goldilocks-zone planet
+		if planet.exoplanet { // try to detect extreme conditions of a non-goldilocks-zone planet
 			if planet_density_Tpm3 > max_neutron_star_density_Tpm3 {
 				////BLACK HOLE ! 
-				return Biome.EventHorizon;
+				return Biome::EventHorizon;
 			}
 			if planet_density_Tpm3 >= min_neutron_star_density_Tpm3 {
 				////neutron star ! 
-				return Biome.NeutronStar;}
-			if planet_mass_kg >= red_dwarf_min_mass_kg {
+				return Biome::NeutronStar;}
+			if planet.mass_kg >= red_dwarf_min_mass_kg {
 				////big enough to spontaneously start thermonuclear fusion and become a star 
-				return Biome.Star;
+				return Biome::Star;
 			}
 		}
 		return classify_biome_on_planet_surface(
@@ -718,6 +693,57 @@ pub mod classifier {
 			temp_var_C,
 			annual_precip_mm
 		);
+	}
+
+	fn rescale(x: f64, xmin: f64, xmax: f64) -> f64{
+		return (x - xmin) / (xmax - xmin);
+	}
+
+	fn dist4fd(a1: f32, b1: f32, c1: f32, d1: f32, a2: f64, b2: f64, c2: f64, d2: f64) -> f64 {
+		let da = a2 - a1 as f64;
+		let db = b2 - b1 as f64;
+		let dc = c2 - c1 as f64;
+		let dd = d2 - d1 as f64;
+		return f64::sqrt(da * da + db * db + dc * dc + dd * dd);
+	}
+
+	#[allow(non_snake_case)]
+	fn boiling_point(pressure_kPa: f64) -> f64{
+		let ln_mbar = f64::ln(pressure_kPa * 10.);
+		let x = ln_mbar;
+		let x2 = x * ln_mbar;
+		let x3 = x2 * ln_mbar;
+		let lp = 0.051769 * x3 + 0.65545 * x2 + 10.387 * x - 10.619;
+		let hp = 0.47092 * x3 - 8.2481 * x2 + 75.520 * x - 183.98;
+		if pressure_kPa< 101.3 {
+			return lp;
+		}else{
+			return hp;
+		}
+	}
+
+	#[allow(non_snake_case)]
+	fn pressure_at_dry_altitude(planet: &Planet, altitude_m: f64, mean_temp_C: f64) -> f64 {
+		let K = mean_temp_C + 273.15;
+		let R = 8.314510;  // j/K/mole
+		let air_molar_mass = 0.02897;  // kg/mol
+		let gravity_m_per_s2 = gravity(planet.mass_kg, planet.mean_radius_km);
+		let pressure_kPa = planet.mean_surface_pressure_kPa * f64::exp(-(air_molar_mass *
+			gravity_m_per_s2 * altitude_m)/(R*K));
+		return pressure_kPa;
+	}
+
+	#[allow(non_snake_case)]
+	fn gravity(mass_kg: f64, distance_km: f64) -> f64 {
+		let G = 6.6743015e-11; // N m2/kg2
+		let distance_m = 1000. * distance_km;
+		return G * (mass_kg) / (distance_m*distance_m);
+	}
+
+	fn clip(x: f64, xmin: f64, xmax: f64) -> f64 {
+		if x < xmin { return xmin;}
+		if x > xmax {return xmax;}
+		return x;
 	}
 
 	#[allow(non_snake_case)]

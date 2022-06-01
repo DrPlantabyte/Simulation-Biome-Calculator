@@ -105,6 +105,7 @@ fn index_of(target: &str, array: &Vec<&str>) -> Option<usize>{
 }
 
 #[allow(non_snake_case)]
+#[allow(unused_variables)]
 #[test]
 fn classify_biomes_on_planet() {
 	let filepath = "../java/net.plantabyte.biomes.test/resources/planet_refs.csv.gz";
