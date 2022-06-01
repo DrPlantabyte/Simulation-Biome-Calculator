@@ -645,14 +645,15 @@ pub mod classifier {
 		temp_var_C: f64,
 		annual_precip_mm: f64) -> Biome
 	{
-		let mean_surface_pressure_kPa = planet.mean_surface_pressure_kPa;
-		let toa_solar_flux_Wpm2 = planet.toa_solar_flux_Wpm2;
-		let axis_tilt_deg = planet.axis_tilt_deg;
-		let tidal_lock = planet.tidal_lock;
+		// let mean_surface_pressure_kPa = planet.mean_surface_pressure_kPa;
+		// let toa_solar_flux_Wpm2 = planet.toa_solar_flux_Wpm2;
+		// let axis_tilt_deg = planet.axis_tilt_deg;
+		// let tidal_lock = planet.tidal_lock;
 		let mean_surface_pressure_kPa = planet.mean_surface_pressure_kPa;
 		let exoplanet = planet.exoplanet;
 		let gravity_m_per_s2 = gravity(planet.mass_kg, planet.mean_radius_km + (0.001*altitude_m));
-		if Double.isNaN(gravity_m_per_s2 + mean_surface_pressure_kPa + mean_solar_flux_Wpm2 + altitude_m + mean_temp_C + temp_var_C + annual_precip_mm) {
+		if f64::is_nan(gravity_m_per_s2 + mean_surface_pressure_kPa + mean_solar_flux_Wpm2 +
+			altitude_m + mean_temp_C + temp_var_C + annual_precip_mm) {
 			return Biome::Unknown;
 		}
 		let water_supercritical_pressure = 22000.; // kPa;
@@ -673,7 +674,7 @@ pub mod classifier {
 		if above_sealevel_m < 0. {
 			above_sealevel_m = 0.;
 		}
-		let pressure_kPa = pressureAtDryAltitude(mean_temp_C, above_sealevel_m);
+		let pressure_kPa = pressure_at_dry_altitude(planet, mean_temp_C, above_sealevel_m);
 		let boiling_point_C = boiling_point(pressure_kPa);
 		if exoplanet { // try to detect extreme conditions of a non-goldilocks-zone planet;
 			if mean_temp_C > quartz_boiling_boint_C {
@@ -685,7 +686,7 @@ pub mod classifier {
 				return Biome::GasGiant;
 			}
 			if mean_temp_C > pyroxene_melting_point_C {
-				if altitude_m <= 0 {
+				if altitude_m <= 0. {
 					return Biome::MagmaSea;
 				} else {
 					return Biome::Moonscape;
