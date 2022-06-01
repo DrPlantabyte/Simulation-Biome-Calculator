@@ -635,6 +635,95 @@ pub mod classifier {
 		return biome_code;
 	}
 
+
+	#[allow(non_snake_case)]
+	pub fn classify_biome_on_planet_surface(
+		planet: &Planet,
+		mean_solar_flux_Wpm2: f64,
+		altitude_m: f64,
+		mean_temp_C: f64,
+		temp_var_C: f64,
+		annual_precip_mm: f64) -> Biome
+	{
+		let mean_surface_pressure_kPa = planet.mean_surface_pressure_kPa;
+		let toa_solar_flux_Wpm2 = planet.toa_solar_flux_Wpm2;
+		let axis_tilt_deg = planet.axis_tilt_deg;
+		let tidal_lock = planet.tidal_lock;
+		let mean_surface_pressure_kPa = planet.mean_surface_pressure_kPa;
+		let exoplanet = planet.exoplanet;
+		let gravity_m_per_s2 = gravity(planet.mass_kg, planet.mean_radius_km + (0.001*altitude_m));
+		if Double.isNaN(gravity_m_per_s2 + mean_surface_pressure_kPa + mean_solar_flux_Wpm2 + altitude_m + mean_temp_C + temp_var_C + annual_precip_mm) {
+			return Biome::Unknown;
+		}
+		let water_supercritical_pressure = 22000.; // kPa;
+		let pyroxene_melting_point_C = 1000.;
+		let quartz_boiling_boint_C = 2230.;
+		////// cryogen params based on liquid nitrogen ( https://www.engineeringtoolbox.com/nitrogen-d_1421.html );
+		//////// alternative cryogens: ammonia, methane; both would oxidize in presense of oxygen, so not as interesting;
+		//////// (oxygen is a pretty common element);
+		let cryo_crit_temp = -147.; // C;
+		let cryo_crit_pressure = 3400.; // kPa;
+		let cryo_triple_temp = -210.; // C;
+		let goldilocks_min_atmosphere = 4.0; // kPa, water must be liquid up to 30 C for earth-like geography;
+		let goldilocks_max_atmosphere = 3350.; // kPa, no super-critical gasses allowed for
+		// earth-like geography;
+		// cryo_triple_pressure = 12.5 // kPa;
+		let vapor_pressure_kPa = 0.61094 * f64::exp((17.625 * (mean_temp_C + temp_var_C)) / ((mean_temp_C + temp_var_C) + 243.04)); // Magnus formula;
+		let mut above_sealevel_m = altitude_m;
+		if above_sealevel_m < 0. {
+			above_sealevel_m = 0.;
+		}
+		let pressure_kPa = pressureAtDryAltitude(mean_temp_C, above_sealevel_m);
+		let boiling_point_C = boiling_point(pressure_kPa);
+		if exoplanet { // try to detect extreme conditions of a non-goldilocks-zone planet;
+			if mean_temp_C > quartz_boiling_boint_C {
+				//// at least as hot as a red dwarf XD;
+				return Biome::Star;
+			}
+			if pressure_kPa > water_supercritical_pressure {
+				////// defining a gas giant is a bit hand-wavey as of 2022;
+				return Biome::GasGiant;
+			}
+			if mean_temp_C > pyroxene_melting_point_C {
+				if altitude_m <= 0 {
+					return Biome::MagmaSea;
+				} else {
+					return Biome::Moonscape;
+				}
+			}
+			if pressure_kPa < vapor_pressure_kPa
+				|| (mean_temp_C - temp_var_C) > boiling_point_C {
+				////// not enough atmosphere to be anything other than a naked rock!;
+				return Biome::Moonscape;
+			}
+			if (mean_temp_C > cryo_triple_temp) && (mean_temp_C < cryo_crit_temp)
+				&& (pressure_kPa < cryo_crit_pressure)
+				&& ( pressure_kPa > (1.6298e9*f64::exp(0.08898*mean_temp_C))) {
+				//// liquid nitrogen planet! (like pluto);
+				if altitude_m <= 0. {
+					return Biome::CryogenSea;
+				} else if annual_precip_mm > 0. {
+					return Biome::IceSheet;
+				} else {
+					return Biome::Moonscape;
+				}
+			}
+			if mean_surface_pressure_kPa < goldilocks_min_atmosphere
+				|| mean_surface_pressure_kPa > goldilocks_max_atmosphere {
+				return Biome::Moonscape;
+			}
+		}
+		//// then check normal biomes;
+		return classify_biome(
+			mean_solar_flux_Wpm2,
+			pressure_kPa,
+			altitude_m,
+			mean_temp_C,
+			temp_var_C,
+			annual_precip_mm
+		);
+	}
+
 	#[allow(non_snake_case)]
 	pub fn classify_biome_on_planet(
 		planet: &Planet,
@@ -744,18 +833,6 @@ pub mod classifier {
 		if x < xmin { return xmin;}
 		if x > xmax {return xmax;}
 		return x;
-	}
-
-	#[allow(non_snake_case)]
-	pub fn classify_biome_on_planet_surface(
-		planet: &Planet,
-		mean_solar_flux_Wpm2: f64,
-		altitude_m: f64,
-		mean_temp_C: f64,
-		temp_var_C: f64,
-		annual_precip_mm: f64
-	) -> Biome {
-		todo!()
 	}
 }
 
