@@ -6,7 +6,7 @@ use flate2::read::GzDecoder;
 use std::collections::HashMap;
 use std::str::{FromStr, Split};
 use biomecalculator::*;
-use biomecalculator::classifier::{classify_biome, Planet, classify_biome_on_planet};
+use biomecalculator::classifier::{classify_biome, Planet, classify_biome_on_planet, classify_biome_on_planet_surface};
 
 #[test]
 fn api_test1() {
@@ -195,7 +195,60 @@ fn classify_biomes_on_planet() {
 
 #[test]
 fn raster_conversion(){
-	todo!()
+	const W: usize = 80;
+	const H: usize = 60;
+	let planet = Planet::EARTH;
+	let mut altitude_map = vec![[0f64; W]; H]; // map[y][x]
+	let mut rainfall_map = vec![[0f64; W]; H];
+	let mut temperature_map = vec![[0f64; W]; H];
+	let mut biome_map = vec![[Biome::Unknown; W]; H];
+	let temperature_range = 3.;
+	let mean_solar_flux = 500.;
+	for row in 0..H{
+		let y = (H as i32/2 - row as i32) as f64 * 10.;
+		for col in 0..W {
+			let x = (col as i32 - W as i32/2) as f64 * 10.;
+			let r = f64::sqrt(x*x + y*y);
+			altitude_map[row][col] = -0.015 * r.powi(2) + 1000.;
+			rainfall_map[row][col] = (2000. - 20.*x).max(0.);
+			temperature_map[row][col] = 30. - 0.05 * f64::max(0., altitude_map[row][col]);
+		}
+	}
+	for row in 0..H{
+		for col in 0..W {
+			biome_map[row][col] = classify_biome_on_planet_surface(
+				&planet, mean_solar_flux, altitude_map[row][col],
+				temperature_map[row][col], temperature_range, rainfall_map[row][col]);
+			println!("mean_solar_flux={}, altitude_map[row][col]={},
+				temperature_map[row][col]={}, temperature_range={}, rainfall_map[row][col]={}", mean_solar_flux, altitude_map[row][col],
+					 temperature_map[row][col], temperature_range, rainfall_map[row][col]);
+		}
+	}
+	let mut ascii_art: HashMap<&Biome, &str> = HashMap::new();
+	ascii_art.insert(&Biome::ShallowOcean, "~");
+	ascii_art.insert(&Biome::DeepOcean, "≈");
+	ascii_art.insert(&Biome::SeaForest, "≉");
+	ascii_art.insert(&Biome::TropicalReef, "≃");
+	ascii_art.insert(&Biome::RockyShallows, "~");
+	ascii_art.insert(&Biome::IceSheet, "*");
+	ascii_art.insert(&Biome::Wetland, "-");
+	ascii_art.insert(&Biome::Grassland, "\"");
+	ascii_art.insert(&Biome::SeasonalForest, "T");
+	ascii_art.insert(&Biome::NeedleleafForest, "^");
+	ascii_art.insert(&Biome::Jungle, "%");
+	ascii_art.insert(&Biome::Tundra, "*");
+	ascii_art.insert(&Biome::DesertShrubland, ".");
+	ascii_art.insert(&Biome::Barren, "_");
+	ascii_art.insert(&Biome::SandSea, "S");
+	let test:Biome = Biome::Barren;
+	println!("{}",ascii_art.get(&test).unwrap());
+
+	for row in 0..H {
+		for col in 0..W {
+			print!("{}", ascii_art.get(&biome_map[row][col]).unwrap_or(&"?"));
+		}
+		println!();
+	}
 }
 
 #[test]

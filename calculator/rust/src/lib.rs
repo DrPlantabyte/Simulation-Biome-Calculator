@@ -429,6 +429,86 @@ pub mod classifier {
 				self.mean_surface_pressure_kPa, self.axis_tilt_deg,
 				self.tidal_lock as i64 as f64, self.exoplanet as i64 as f64];
 		}
+
+		pub fn with_mass(&self, mass_kg: f64) -> Planet {
+			return Planet{
+				mass_kg:mass_kg,
+				mean_radius_km:self.mean_radius_km,
+				toa_solar_flux_Wpm2:self.toa_solar_flux_Wpm2,
+				axis_tilt_deg:self.axis_tilt_deg,
+				tidal_lock:self.tidal_lock,
+				mean_surface_pressure_kPa:self.mean_surface_pressure_kPa,
+				exoplanet:self.exoplanet
+			};
+		}
+		pub fn with_radius(&self, radius_km: f64) -> Planet {
+			return Planet{
+				mass_kg:self.mass_kg,
+				mean_radius_km:radius_km,
+				toa_solar_flux_Wpm2:self.toa_solar_flux_Wpm2,
+				axis_tilt_deg:self.axis_tilt_deg,
+				tidal_lock:self.tidal_lock,
+				mean_surface_pressure_kPa:self.mean_surface_pressure_kPa,
+				exoplanet:self.exoplanet
+			};
+		}
+		#[allow(non_snake_case)]
+		pub fn with_toa_solar_flux(&self, toa_solar_flux_Wpm2: f64) -> Planet {
+			return Planet{
+				mass_kg:self.mass_kg,
+				mean_radius_km:self.mean_radius_km,
+				toa_solar_flux_Wpm2:toa_solar_flux_Wpm2,
+				axis_tilt_deg:self.axis_tilt_deg,
+				tidal_lock:self.tidal_lock,
+				mean_surface_pressure_kPa:self.mean_surface_pressure_kPa,
+				exoplanet:self.exoplanet
+			};
+		}
+		pub fn with_axis_tilt(&self, axis_tilt_deg: f64) -> Planet {
+			return Planet{
+				mass_kg:self.mass_kg,
+				mean_radius_km:self.mean_radius_km,
+				toa_solar_flux_Wpm2:self.toa_solar_flux_Wpm2,
+				axis_tilt_deg:axis_tilt_deg,
+				tidal_lock:self.tidal_lock,
+				mean_surface_pressure_kPa:self.mean_surface_pressure_kPa,
+				exoplanet:self.exoplanet
+			};
+		}
+		pub fn with_tidal_lock(&self, tidal_lock: bool) -> Planet {
+			return Planet{
+				mass_kg:self.mass_kg,
+				mean_radius_km:self.mean_radius_km,
+				toa_solar_flux_Wpm2:self.toa_solar_flux_Wpm2,
+				axis_tilt_deg:self.axis_tilt_deg,
+				tidal_lock:tidal_lock,
+				mean_surface_pressure_kPa:self.mean_surface_pressure_kPa,
+				exoplanet:self.exoplanet
+			};
+		}
+		#[allow(non_snake_case)]
+		pub fn with_surface_pressure(&self, mean_surface_pressure_kPa: f64) -> Planet {
+			return Planet{
+				mass_kg:self.mass_kg,
+				mean_radius_km:self.mean_radius_km,
+				toa_solar_flux_Wpm2:self.toa_solar_flux_Wpm2,
+				axis_tilt_deg:self.axis_tilt_deg,
+				tidal_lock:self.tidal_lock,
+				mean_surface_pressure_kPa:mean_surface_pressure_kPa,
+				exoplanet:self.exoplanet
+			};
+		}
+		pub fn with_exoplanet_biomes(&self, use_exoplanet: bool) -> Planet {
+			return Planet{
+				mass_kg:self.mass_kg,
+				mean_radius_km:self.mean_radius_km,
+				toa_solar_flux_Wpm2:self.toa_solar_flux_Wpm2,
+				axis_tilt_deg:self.axis_tilt_deg,
+				tidal_lock:self.tidal_lock,
+				mean_surface_pressure_kPa:self.mean_surface_pressure_kPa,
+				exoplanet:use_exoplanet
+			};
+		}
 	}
 	impl Hash for Planet {
 		// Note: not a particularly effective hash, but good enough to be usable
