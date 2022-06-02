@@ -54,9 +54,9 @@ xxxx = biome code within category
 |  116 |OOZE             |Living landscape, such as an ocean-sized amoeba   |
 
 ## The Biome Calculator
-The biome calculator is a classifier that predicts the Plantabyte biome for a given set of enviromental parameters. Classification for Earth-like planets is best on a set of primary parameters. For exoplanet simulations, additional planetary parameters are used.
+The biome calculator is a classifier that predicts the Plantabyte biome for a given set of enviromental parameters. Classification for Earth-like planets is based on a set of environmental parameters. For exoplanet simulations, additional planetary parameters are used.
 
-#### Primary parameters
+#### Environmental parameters
 * **Mean solar flux (watts per square meter)** - This is the integrated average light intensity (averaged across the whole year, day and night included), ranges from 200-800 on Earth
 * **Pressure (kPa)** - Atmospheric pressure
 * **Altitude (m)** - Altitude above/below sealevel
@@ -72,7 +72,7 @@ The biome calculator is a classifier that predicts the Plantabyte biome for a gi
 * **Tidal lock (true/false)** - Tidally locked planets have no day-night cycle, so their calculations are a little different
 
 ## Validation of Dr. Plantabyte's Biomes
-Dr. Plantabyte's biomes and classification system was validated against satellite data from NASA MODIS, GEBCO, and GPM IMERG data. Compared to the MODIS IGBP land cover biome classification data set, Dr. Plantabyte's biome classification algorithm is approximately 70% accurate. There is no global accounting of marine biomes, so it's impossible to verify the accuracy of Dr. Plantabyte's marine biome predictions, but several known coral reefs and kelp forest locations were used tp confirm that they are successfully classified as such. 
+Dr. Plantabyte's biomes and classification system was validated against satellite data from NASA MODIS, GEBCO, and GPM IMERG data. Compared to the MODIS IGBP land cover biome classification data set, Dr. Plantabyte's biome classification algorithm is approximately 70% accurate. Unfortunately, there is no global accounting of marine biomes (yet), so it's impossible to verify the accuracy of Dr. Plantabyte's marine biome predictions, but several known coral reefs and kelp forest locations were used to confirm that they are successfully classified as such. 
 
 ## Implementations
 Here we provide several implementations of the Dr. Plantabyte Biome calculations in several programming languages for your convenience.

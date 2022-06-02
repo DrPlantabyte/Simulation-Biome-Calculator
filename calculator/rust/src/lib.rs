@@ -1,6 +1,77 @@
+//! # biomecalculator
+//! This module provides a `Biome` enum which enumerates all of the possible types of biomes in the
+//! Plantabyte biome classification system (see below). It also provides the `classifier` sub-module
+//! with the following biome calculator functions:
+//! * classifier::classify_biome(...) - Use for Earth-like biome classifications
+//! * classifier::classify_biome_on_planet(...) - Use for (latitude, longitude) coordinate-based
+//! biome calculation on exoplanets (automatic solar flux calculation)
+//! * classifier::classify_biome_on_planet_surface(...) - Use for simlated environment based
+//! calculation of biomes on exoplanets (manual solar flux calculation)
+//!
+//! Example usage:
+//! TODO
+//!
+//! ## Plantabyte Biomes
+//! There are a few dozen biomes in Dr. Plantabyte's biome classification system, and each is
+//! assigned a 7-bit code which identifies and categorizes each biome: 3 category upper bits and
+//! 4 biome code lower bits:
+//!
+//! bits: 0yyyxxxx
+//!
+//! yyy = biome category (0=terrestrial, 1=aquatic, 2=artificial, 4=astronomical, 7=fantasy/sci-fi)
+//!
+//! xxxx = biome code within category
+//!
+//! |bcode |Name             |Description                                       |
+//! |------|-----------------|--------------------------------------------------|
+//! |    0 |UNKNOWN          |Indicates an absence of data                      |
+//! |      | *Terrestrial Biomes* |                                             |
+//! |    1 |WETLAND          |Permanent wetland                                 |
+//! |    2 |JUNGLE           |Tropical rainforest                               |
+//! |    3 |SEASONAL_FOREST  |Temperate deciduous forest                        |
+//! |    4 |NEEDLELEAF_FOREST|Temperate evergreen forest                        |
+//! |    5 |GRASSLAND        |Plains, prairies, and savannas                    |
+//! |    6 |DESERT_SHRUBLAND |Dry shrublands and deserts with vegetation        |
+//! |    7 |TUNDRA           |Seasonal grasslands where it is too cold for trees|
+//! |    8 |BARREN           |Exposed rocks with little to no macroscopic life  |
+//! |    9 |SAND_SEA         |Sand dunes with little to no macroscopic life     |
+//! |      | *Aquatic Biomes*|                                                  |
+//! |   17 |FRESHWATER       |Lakes and rivers                                  |
+//! |   18 |SEA_FOREST       |Seagrass meadows and seaweed forests              |
+//! |   19 |TROPICAL_REEF    |Coral reefs                                       |
+//! |   20 |ROCKY_SHALLOWS   |Low productivity shallow marine waters            |
+//! |   16 |DEEP_OCEAN       |Ocean                                             |
+//! |   21 |SHALLOW_OCEAN    |Shallow ocean regions where light reaches seabed  |
+//! |   22 |ICE_SHEET        |Frozen ocean or land covered in permanent ice     |
+//! |   23 |BOILING_SEA      |Water body so hot that it boils                   |
+//! |      | *Artificial Biomes* |                                              |
+//! |   32 |FARMLAND         |Cultivated land                                   |
+//! |   33 |URBAN            |Cities, streets, and other artificial structures  |
+//! |   34 |RUINS            |Abandoned urban areas being reclaimed by nature   |
+//! |   35 |POLLUTED_WASTELAND|Land too polluted to support terrestrial life    |
+//! |   36 |POLLUTED_WASTEWATER|Water too polluted to support aquatic life      |
+//! |      | *Astronomical "Biomes"* |                                          |
+//! |   64 |MOONSCAPE        |Lifeless dry dust and/or rock                     |
+//! |   65 |MAGMA_SEA        |Ocean of molten rock                              |
+//! |   66 |CRYOGEN_SEA      |Ocean of liquid cryogen (eg liquid nitrogen)      |
+//! |   67 |GAS_GIANT        |"Surface" of planet with extremely thick atmosphere|
+//! |   68 |STAR             |Surface of a star                                 |
+//! |   69 |NEUTRON_STAR     |Surface of a neutron star                         |
+//! |   70 |EVENT_HORIZON    |"Surface" of a black hole                         |
+//! |      | *Fantasy Biomes*|                                                  |
+//! |  112 |BIOLUMINESCENT   |Permanently dark biome with bioluminescent flora  |
+//! |  113 |DEAD             |Dead (or undead) landscape                        |
+//! |  114 |MAGIC_GARDEN     |Magical paradise                                  |
+//! |  115 |ELEMENTAL_CHAOS  |Floating rocks, never-melt ice, dancing fire, etc.|
+//! |  116 |OOZE             |Living landscape, such as an ocean-sized amoeba   |
+//!
+//! See the description of the `Biome` enum for more details
+//!
 use std::fmt::{Display, Result, Formatter};
 use variant_count::VariantCount;
 
+/// # enum Biome
+/// TODO
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(VariantCount)] // NOTE: exposes Biome::VARIANT_COUNT to public API
@@ -226,7 +297,7 @@ impl Biome {
 	pub fn bcode(&self) -> u8 {
 		get_data(self).biome_code
 	}
- 	/// Returns the Plantabyte Biome code name for this Biome (intended for
+ 	/// Returns the Plantabyte Biome enum name for this Biome (intended for
  	/// debugging). For user-facing apps, either use this as the key for i18n
  	/// localization or use `.common_name()` or `.technical_name()` instead.
 	pub fn name(&self) -> &'static str {
@@ -399,13 +470,15 @@ impl Display for Biome {
 		f.write_str(self.name().as_ref())
 	}
 }
-
+/// # module classifier
+/// TODO
 pub mod classifier {
 	use std::cmp::Ordering;
 	use std::hash::{Hash, Hasher};
 	use crate::Biome;
 	use ordered_float::OrderedFloat;
 
+	/// TODO
 	#[allow(non_snake_case)]
 	#[derive(Copy, Clone, Debug)]
 	#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
