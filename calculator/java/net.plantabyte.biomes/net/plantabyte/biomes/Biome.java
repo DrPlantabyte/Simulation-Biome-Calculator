@@ -15,8 +15,8 @@ package net.plantabyte.biomes;
  <p>To bridge the gap between lay-person and technical names for the biomes,
  each Plantabyte biome has a common name
  ({@link net.plantabyte.biomes.Biome#commonName}) and a technical name
- ({@link Biome#getTechnicalName()}). For example, the 
- <p>Biomes are encoded as 7-bit codes consisting of 3 category bits and 4 biome
+ ({@link Biome#getTechnicalName()}).
+ <p>Biomes are stored as 7-bit byte codes consisting of 3 category bits and 4 biome
  code bits:<br>
  bits: <code>0b0yyyxxxx</code><br>
  <code>yyy</code> = biome category (0=terrestrial, 1=aquatic, 2=artificial, 4=astronomical, 7=fictional)<br>

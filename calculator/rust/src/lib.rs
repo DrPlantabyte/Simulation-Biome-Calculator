@@ -71,7 +71,44 @@ use std::fmt::{Display, Result, Formatter};
 use variant_count::VariantCount;
 
 /// # enum Biome
-/// TODO
+/// The `Biome` enumeration represents all possible biomes.
+///
+/// These biomes are based on various sources from the fields of remote sensing,
+/// marine biology, and astrobiology research, combined with machine learning and a
+/// few expert guestimates from plant biologist Dr. Christopher C. Hall. The result
+/// is a realistic biome classification system that covers both Earthly biomes and
+/// plausible exoplanet environments. A few  abiotic "biomes" are included as well
+/// to facilitate use in simulations for graphic design, story-telling, and games.
+/// <p>The Biome enum represents Dr. Plantabyte's biomes for Earth and simulated
+/// exoplanets. The biomes include both Earthly biomes like tropical rainforests
+/// (jungle) and grasslands, as well as biomes that do not exist on Earth but may
+/// exist on other planets, such as boiling seas.
+///
+/// To bridge the gap between lay-person and technical names for the biomes,
+/// each Plantabyte biome has a common name and a technical name (methods `.common_name()` and
+/// `.technical_name()` respectively). For localization and debugging, use the `.name()` or
+/// `.to_string()` methods (`.to_string()` returns `.name()`) to represent the enum value as a
+/// string (any change to the output of `.name()` or `.to_string()` would be considered a breaking
+/// change by the maintainers of this library, but changing `.common_name()` or `.technical_name()`
+/// might not be).
+///
+/// ## bcodes
+/// Biomes are encoded as 7-bit codes (aka "bcodes") consisting of 3 category bits and 4 biome
+/// code bits:
+///
+/// bits: 0b0yyyxxxx
+///
+/// yyy = biome category (0=terrestrial, 1=aquatic, 2=artificial, 4=astronomical, 7=fictional)
+///
+/// xxxx = biome code within category
+///
+/// For example, the following will print the biome code for Grassland (5):
+/// ```
+/// use biomecalculator::Biome;
+/// println!("Grassland biome code = {}", Biome::Grassland.bcode())
+/// ```
+///
+///
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(VariantCount)] // NOTE: exposes Biome::VARIANT_COUNT to public API
