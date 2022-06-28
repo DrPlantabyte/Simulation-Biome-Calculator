@@ -936,16 +936,15 @@ pub mod classifier {
 		let pressure_kPa = pressure_at_dry_altitude(planet, mean_temp_C, above_sealevel_m);
 		let epsilon_air = 3.46391e-5; // Absorption per kPa (1360 = 1371 * 10^(-eps * 101) );
 		let max_flux = planet.toa_solar_flux_Wpm2 * f64::powf(10., -epsilon_air * pressure_kPa);
-		let mut mean_solar_flux_Wpm2 = 0f64;
 		let axis_tilt_deg = planet.axis_tilt_deg;
-		if planet.tidal_lock {
-			mean_solar_flux_Wpm2 =
-				max_flux * two_over_pi * f64::cos(latitude) * clip(f64::cos(longitude), 0., 1.);
-		} else {
-			mean_solar_flux_Wpm2 = max_flux * two_over_pi * 0.5 * (
+		let mean_solar_flux_Wpm2 = match planet.tidal_lock {
+			true =>
+				max_flux * two_over_pi * f64::cos(latitude) * clip(f64::cos(longitude), 0., 1.),
+			false => max_flux * two_over_pi * 0.5 * (
 				clip(f64::cos(deg2Rad * (latitude - axis_tilt_deg)), 0., 1.) + clip(
-					f64::cos(deg2Rad * (latitude + axis_tilt_deg)), 0., 1.));
-		}
+					f64::cos(deg2Rad * (latitude + axis_tilt_deg)), 0., 1.)
+			)
+		};
 		//// if doing expoplanet calcualtion, first check astronomical biomes
 		let min_neutron_star_density_Tpm3 = 1e14; // tons per cubic meter (aka g/cc)
 		let max_neutron_star_density_Tpm3 = 2e16; // tons per cubic meter (aka g/cc)
