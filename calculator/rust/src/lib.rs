@@ -694,38 +694,63 @@ impl Display for Biome {
 	}
 }
 /// # module classifier
-/// TODO
+/// The classifier module contains functions for estimating the biome for a given set of
+/// environmental and planetary parameters.
+///
+/// For simulations of Earth-like planets, you can simply use the `classify_biome(...)` classifier
+/// function. However, for exoplanet simulations, you will need to first initialize a `Planet`
+/// struct and then use either `classify_biome_on_planet_surface(...)` (if providing your own solar
+/// flux calculations) or `classify_biome_on_planet(..)` if you want the classifier to computer the
+/// solar flux from the given latitude and longitude.
 pub mod classifier {
 	use std::cmp::Ordering;
 	use std::hash::{Hash, Hasher};
 	use crate::Biome;
 	use ordered_float::OrderedFloat;
 
-	/// TODO
+	/// The `Planet` struct proved the planetary parameters for exoplanet biome calculation.
 	#[allow(non_snake_case)]
 	#[derive(Copy, Clone, Debug)]
 	#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 	pub struct Planet {
+		/// The mass of the planet, in kilograms (eg the Earth has a mass of 5.972e24 kg)
 		pub mass_kg: f64,
+		/// The average radius of the planet (assuming spherical shape), in kilometers (eg the
+		/// Earth has a mean radius of 6.371e3 km)
 		pub mean_radius_km: f64,
+		/// Top-of-atmosphere solar flux, in watts per square meter (eg 1373 W/m2 for Earth's
+		/// orbit around the sun)
 		pub toa_solar_flux_Wpm2: f64,
+		/// The planet's rotational axis tilt in degrees (eg the Earth has a tilt of about 23
+		/// degrees)
 		pub axis_tilt_deg: f64,
+		/// Set to `true` for a tidally locked planet (one side always faces it's host star),
+		/// `false` otherwise
 		pub tidal_lock: bool,
+		/// Atmospheric pressure at "sea-level" in kilopascals (eg 101.3 kPa on Earth)
 		pub mean_surface_pressure_kPa: f64,
+		/// If `true`, this enables more exotic exoplanet "biome" calculations such as gas giants
+		/// and stars. If `false`, then this forces the classifier to choose the best biological
+		/// biome for the given parameters, even for planets that could not possibly harbor any
+		/// life.
 		pub exoplanet: bool
 	}
 	impl Planet {
+		/// The Earth's parameters (a useful starting point)
 		pub const EARTH: Planet = Planet{mass_kg: 5.972e24, mean_radius_km: 6.371e3,
 			toa_solar_flux_Wpm2:
 		1373., axis_tilt_deg: 23., mean_surface_pressure_kPa: 101.3, tidal_lock: false,
 			exoplanet: false};
 
+		/// Quick-and-dirty serializer, used for sorting
 		fn to_f64_array(&self) -> [f64; 7]{
 			return [self.mass_kg, self.mean_radius_km, self.toa_solar_flux_Wpm2,
 				self.mean_surface_pressure_kPa, self.axis_tilt_deg,
 				self.tidal_lock as i64 as f64, self.exoplanet as i64 as f64];
 		}
 
+		/// Derive a new planet with identical parameters to this struct, except for the
+		/// newly specified mass (in kg)
 		pub fn with_mass(&self, mass_kg: f64) -> Planet {
 			return Planet{
 				mass_kg:mass_kg,
@@ -737,6 +762,9 @@ pub mod classifier {
 				exoplanet:self.exoplanet
 			};
 		}
+
+		/// Derive a new planet with identical parameters to this struct, except for the
+		/// newly specified radius (in km)
 		pub fn with_radius(&self, radius_km: f64) -> Planet {
 			return Planet{
 				mass_kg:self.mass_kg,
@@ -748,6 +776,9 @@ pub mod classifier {
 				exoplanet:self.exoplanet
 			};
 		}
+
+		/// Derive a new planet with identical parameters to this struct, except for the
+		/// newly specified top-of-atmosphere solar flux (in watts per square meter)
 		#[allow(non_snake_case)]
 		pub fn with_toa_solar_flux(&self, toa_solar_flux_Wpm2: f64) -> Planet {
 			return Planet{
@@ -760,6 +791,9 @@ pub mod classifier {
 				exoplanet:self.exoplanet
 			};
 		}
+
+		/// Derive a new planet with identical parameters to this struct, except for the
+		/// newly specified axis tilt (in degrees)
 		pub fn with_axis_tilt(&self, axis_tilt_deg: f64) -> Planet {
 			return Planet{
 				mass_kg:self.mass_kg,
@@ -771,6 +805,9 @@ pub mod classifier {
 				exoplanet:self.exoplanet
 			};
 		}
+
+		/// Derive a new planet with identical parameters to this struct, except for the
+		/// newly specified tidal lock flag
 		pub fn with_tidal_lock(&self, tidal_lock: bool) -> Planet {
 			return Planet{
 				mass_kg:self.mass_kg,
@@ -782,6 +819,9 @@ pub mod classifier {
 				exoplanet:self.exoplanet
 			};
 		}
+
+		/// Derive a new planet with identical parameters to this struct, except for the
+		/// newly specified surface pressure (in kPa)
 		#[allow(non_snake_case)]
 		pub fn with_surface_pressure(&self, mean_surface_pressure_kPa: f64) -> Planet {
 			return Planet{
@@ -794,6 +834,9 @@ pub mod classifier {
 				exoplanet:self.exoplanet
 			};
 		}
+
+		/// Derive a new planet with identical parameters to this struct, except for the
+		/// newly specified exoplanet flag
 		pub fn with_exoplanet_biomes(&self, use_exoplanet: bool) -> Planet {
 			return Planet{
 				mass_kg:self.mass_kg,
@@ -863,10 +906,11 @@ pub mod classifier {
 		}
 	}
 
-
+	/// Used in nearest ref point biome calculation algorithm
 	const REF_CLASSES: [Biome; 9] = [Biome::Wetland, Biome::Jungle, Biome::SeasonalForest,
 		Biome::NeedleleafForest, Biome::Grassland, Biome::DesertShrubland, Biome::Tundra,
 		Biome::Barren, Biome::SandSea];
+	/// Used in nearest ref point biome calculation algorithm
 	const REF_POINTS: [[[f32; 4]; 5]; 9] = [ // size = [9][5][4]
 //// wetlands
 		[[0.97589505f32, 0.6692817f32, 0.09676683f32, 0.42183435f32],
@@ -924,6 +968,19 @@ pub mod classifier {
 			[0.24349129f32, 0.7866096f32, 0.45044297f32, 0.11177942f32]]
 	];
 
+	/// Predicts the biome for a given set of environmental parameters (does not take into
+	/// account planetary parameters such as extreme gravity), assuming an Earth-like planet
+	///
+	/// Returns the `Biome` enum predicted for the above environmental parameters on this (exo)planet
+	///
+	/// ## Arguments:
+	///
+	/// * `mean_solar_flux_Wpm2`: Annual mean solar irradiance at ground/sea level, in watts per square meter
+	/// * `pressure_kPa`: Atmospheric pressure at ground/sea level, in kPa
+	/// * `altitude_m`: Altitude of the terrain in meters, with negative values to indicate ocean depth
+	/// * `mean_temp_C`: Annual mean temperature, in degrees C
+	/// * `temp_var_C`: Range of annual temperature variation, in degrees C (ampplitude of a seasonal sine wave or 1.5 standard deviations of daily averages)
+	/// * `annual_precip_mm`: Total annual precipitation in mm (10mm snow == 1mm precipitation)
 	#[allow(non_snake_case)]
 	pub fn classify_biome(
 		mean_solar_flux_Wpm2: f64,
@@ -1012,6 +1069,18 @@ pub mod classifier {
 	}
 
 
+	/// Predicts the biome for a given set of environmental and planetary parameters.
+	///
+	/// Returns the `Biome` enum predicted for the above environmental parameters on this (exo)planet
+	///
+	/// ## Arguments:
+	///
+	/// * `planet`: Planetary parameters `Planet` struct
+	/// * `mean_solar_flux_Wpm2`: Annual mean solar irradiance at ground/sea level, in watts per square meter
+	/// * `altitude_m`: Altitude of the terrain in meters, with negative values to indicate ocean depth
+	/// * `mean_temp_C`: Annual mean temperature, in degrees C
+	/// * `temp_var_C`: Range of annual temperature variation, in degrees C (ampplitude of a seasonal sine wave or 1.5 standard deviations of daily averages)
+	/// * `annual_precip_mm`: Total annual precipitation in mm (10mm snow == 1mm precipitation)
 	#[allow(non_snake_case)]
 	pub fn classify_biome_on_planet_surface(
 		planet: &Planet,
@@ -1101,6 +1170,20 @@ pub mod classifier {
 		);
 	}
 
+	/// Predicts the biome for a given set of environmental and planetary parameters, calculating
+	/// the mean solar flux from the provided latitude and longitude.
+	///
+	/// Returns the `Biome` enum predicted for the above environmental parameters on this (exo)planet
+	///
+	/// ## Arguments:
+	///
+	/// * `planet`: Planetary parameters `Planet` struct
+	/// * `altitude_m`: Altitude of the terrain in meters, with negative values to indicate ocean depth
+	/// * `mean_temp_C`: Annual mean temperature, in degrees C
+	/// * `temp_var_C`: Range of annual temperature variation, in degrees C (ampplitude of a seasonal sine wave or 1.5 standard deviations of daily averages)
+	/// * `annual_precip_mm`: Total annual precipitation in mm (10mm snow == 1mm precipitation)
+	/// * `latitude`: Latitude in degrees North (negative for southern hemisphere)
+	/// * `longitude`: Longitude in degrees East (negative or >180 for western hemisphere)
 	#[allow(non_snake_case)]
 	pub fn classify_biome_on_planet(
 		planet: &Planet,
