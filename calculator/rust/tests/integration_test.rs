@@ -1,4 +1,4 @@
-#[!allow(unused_imports)]
+#![allow(unused_imports)]
 use std::io;
 use std::io::prelude::*;
 use std::fs::File;
@@ -18,6 +18,7 @@ fn api_test1() {
 
 #[test]
 fn api_test2() {
+	println!();
 	use biomecalculator::classifier::*;
 	let ascii2data = |ascii: &[&str], m: f64, b: f64| {
 		let mut rows: Vec<Vec<f64>> = Vec::with_capacity(ascii.len());
@@ -28,8 +29,9 @@ fn api_test2() {
 			}
 			rows.push(row);
 		}
-		row
+		rows
 	};
+	let w = 36; let h = 18;
 	let land_alt_map = ascii2data(
 &["000000000000000000000000000000000000",
   "000000001200103400000000000110000000",
@@ -76,14 +78,14 @@ fn api_test2() {
   "555565444434556665555555544443334555",
   "666666655566666666666666654450566666",
   "777776777777777677777777076666777777",
-  "077777777777777777777887777777777777",
-  "077777777777777777777777777777777777",
-  "077777777777777777777777777777777777",
-  "077777777767777777777777777777777770",
-  "077777766666667766666777777777677770",
-  "066666666666666666666666666666666660",
-  "055555555555555555555555555555555650",
-  "055555555555550004444545545555555550",
+  "777777777877777777788887777777777777",
+  "777777777788877777777888777777777777",
+  "777777777778887777777888777777777777",
+  "777777777767777777777777777777777777",
+  "777777766666667766666777777777677777",
+  "666666666666666666666666666666666666",
+  "555555555555555555555555555555555655",
+  "555555555555550004444545545555555555",
   "000000444400000000000000000000000000",
   "000000000000000000000000000000000000",
   "000000000000000000000000000000000000"], 10., -50.);
@@ -125,7 +127,26 @@ fn api_test2() {
   "188876761611111531111111111111111111",
   "111111111111111111111111111111111111",
   "000000000000000000000000000000000000"], 200., 0.);
-	todo!()
+	let tidally_locked_earth = Planet::EARTH.with_tidal_lock(true);
+	let mut biome_map: Vec<Vec<Biome>> = vec![vec![Biome::Unknown; w]; h];
+	for row in 0..h {
+		let latitude = (h-row) as f64 * (180./h as f64) - 90.;
+		for col in 0..w {
+			let longitude = (col) as f64 * (360./w as f64) - 180.;
+			let altitude = land_alt_map[row][col] + sea_depth_map[row][col];
+			let mean_temperature = 0.5*(temp_max_map[row][col] + temp_min_map[row][col]);
+			let temperature_range = temp_max_map[row][col] - temp_min_map[row][col];
+			let precipitation = precip_map[row][col];
+			biome_map[row][col] = classify_biome_on_planet(
+				&tidally_locked_earth, altitude, mean_temperature,
+				temperature_range, precipitation,
+				latitude, longitude
+			);
+		}
+	}
+	for row in 0..h { for col in 0..w {
+		print!("{}", biome_map[row][col].icon())
+	} println!(); }
 }
 
 #[allow(non_snake_case)]
@@ -369,4 +390,5 @@ fn conversion_coverage(){
 		assert_eq!(biomes[i], Biome::from(bcodes[i]));
 	}
 }
+
 

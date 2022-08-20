@@ -201,86 +201,130 @@ impl Biome {
 }
 /// This stuct is is a workaround for Rust not having Java-style const value
 /// enums. For each data-less type in enum Biome, there is a corresponding
-/// const BiomeEnumData struct instance holding it's assiciated data. Then
+/// const BiomeEnumData struct instance holding it's associated data. Then
 /// there is a private get_data(Biome) function using a match statement to link
 /// the two.
 struct BiomeEnumData {
 	biome_code: u8,
 	enum_name: &'static str,
 	common_name: &'static str,
-	technical_name: &'static str
+	technical_name: &'static str,
+	icon: &'static str,
+	map_color: [u8; 3],
 }
 impl BiomeEnumData {
 	/// const data for enum Biome::Unknown
-	const UNKNOWN: Self = Self{biome_code: 0, enum_name: &"Unknown", common_name: &"unknown", technical_name: &"unknown"};
+	const UNKNOWN: Self = Self{biome_code: 0, enum_name: &"Unknown", common_name: &"unknown",
+		technical_name: &"unknown", icon: &"?", map_color: [127, 127, 127]};
 	/// const data for enum Biome::Wetland
-	const WETLAND: Self = Self{biome_code: 1, enum_name: &"Wetland", common_name: &"swamp", technical_name: &"wetland"};
+	const WETLAND: Self = Self{biome_code: 1, enum_name: &"Wetland", common_name: &"swamp",
+		technical_name: &"wetland", icon: &"w", map_color: [0, 192, 118]};
 	/// const data for enum Biome::Jungle
-	const JUNGLE: Self = Self{biome_code: 2, enum_name: &"Jungle", common_name: &"jungle", technical_name: &"tropical rainforest"};
+	const JUNGLE: Self = Self{biome_code: 2, enum_name: &"Jungle", common_name: &"jungle",
+		technical_name: &"tropical rainforest", icon: &"T", map_color: [0, 192, 0]};
 	/// const data for enum Biome::SeasonalForest
-	const SEASONAL_FOREST: Self = Self{biome_code: 3, enum_name: &"SeasonalForest", common_name: &"deciduous forest", technical_name: &"temperate forest"};
+	const SEASONAL_FOREST: Self = Self{biome_code: 3, enum_name: &"SeasonalForest", common_name:
+	&"deciduous forest", technical_name: &"temperate forest", icon: &"t", map_color: [78, 192, 0]};
 	/// const data for enum Biome::NeedleleafForest
-	const NEEDLELEAF_FOREST: Self = Self{biome_code: 4, enum_name: &"NeedleleafForest", common_name: &"evergreen forest", technical_name: &"needleleaf forest"};
+	const NEEDLELEAF_FOREST: Self = Self{biome_code: 4, enum_name: &"NeedleleafForest",
+		common_name: &"evergreen forest", technical_name: &"needleleaf forest", icon: &"^",
+		map_color: [27, 113, 68]};
 	/// const data for enum Biome::Grassland
-	const GRASSLAND: Self = Self{biome_code: 5, enum_name: &"Grassland", common_name: &"grassland", technical_name: &"grassland"};
+	const GRASSLAND: Self = Self{biome_code: 5, enum_name: &"Grassland", common_name:
+	&"grassland", technical_name: &"grassland", icon: &"\"", map_color: [184, 255, 55]};
 	/// const data for enum Biome::DesertShrubland
-	const DESERT_SHRUBLAND: Self = Self{biome_code: 6, enum_name: &"DesertShrubland", common_name: &"desert", technical_name: &"xeric shrubland"};
+	const DESERT_SHRUBLAND: Self = Self{biome_code: 6, enum_name: &"DesertShrubland",
+		common_name: &"desert", technical_name: &"xeric shrubland", icon: &"'", map_color: [255,
+			197, 57]};
 	/// const data for enum Biome::Tundra
-	const TUNDRA: Self = Self{biome_code: 7, enum_name: &"Tundra", common_name: &"tundra", technical_name: &"tundra"};
+	const TUNDRA: Self = Self{biome_code: 7, enum_name: &"Tundra", common_name: &"tundra",
+		technical_name: &"tundra", icon: &"=", map_color: [130, 221, 142]};
 	/// const data for enum Biome::Freshwater
-	const FRESHWATER: Self = Self{biome_code: 17, enum_name: &"Freshwater", common_name: &"freshwater", technical_name: &"freshwater"};
+	const FRESHWATER: Self = Self{biome_code: 17, enum_name: &"Freshwater", common_name:
+	&"freshwater", technical_name: &"freshwater", icon: &"~", map_color: [0, 255, 255]};
 	/// const data for enum Biome::SeaForest
-	const SEA_FOREST: Self = Self{biome_code: 18, enum_name: &"SeaForest", common_name: &"seaweed forest", technical_name: &"marine forest"};
+	const SEA_FOREST: Self = Self{biome_code: 18, enum_name: &"SeaForest",
+		common_name: &"seaweed forest", technical_name: &"marine forest", icon: &"~", map_color:
+		[85, 190, 190]};
 	/// const data for enum Biome::TropicalReef
-	const TROPICAL_REEF: Self = Self{biome_code: 19, enum_name: &"TropicalReef", common_name: &"coral reef", technical_name: &"tropical reef"};
+	const TROPICAL_REEF: Self = Self{biome_code: 19, enum_name: &"TropicalReef", common_name:
+	&"coral reef", technical_name: &"tropical reef", icon: &"~", map_color: [70, 218, 248]};
 	/// const data for enum Biome::RockyShallows
-	const ROCKY_SHALLOWS: Self = Self{biome_code: 20, enum_name: &"RockyShallows", common_name: &"rocky shallows", technical_name: &"rocky shallows"};
+	const ROCKY_SHALLOWS: Self = Self{biome_code: 20, enum_name: &"RockyShallows", common_name:
+	&"rocky shallows", technical_name: &"rocky shallows", icon: &"~", map_color: [85, 114, 191]};
 	/// const data for enum Biome::DeepOcean
-	const DEEP_OCEAN: Self = Self{biome_code: 16, enum_name: &"DeepOcean", common_name: &"ocean", technical_name: &"deep ocean"};
+	const DEEP_OCEAN: Self = Self{biome_code: 16, enum_name: &"DeepOcean", common_name: &"ocean",
+		technical_name: &"deep ocean", icon: &"≈", map_color: [42, 82, 190]};
 	/// const data for enum Biome::ShallowOcean
-	const SHALLOW_OCEAN: Self = Self{biome_code: 21, enum_name: &"ShallowOcean", common_name: &"shallow ocean", technical_name: &"shallow ocean"};
+	const SHALLOW_OCEAN: Self = Self{biome_code: 21, enum_name: &"ShallowOcean", common_name:
+	&"shallow ocean", technical_name: &"shallow ocean", icon: &"~", map_color: [0, 134, 176]};
 	/// const data for enum Biome::Barren
-	const BARREN: Self = Self{biome_code: 8, enum_name: &"Barren", common_name: &"barren", technical_name: &"barren"};
+	const BARREN: Self = Self{biome_code: 8, enum_name: &"Barren", common_name: &"barren",
+		technical_name: &"barren", icon: &".", map_color: [192, 162, 138]};
 	/// const data for enum Biome::SandSea
-	const SAND_SEA: Self = Self{biome_code: 9, enum_name: &"SandSea", common_name: &"sand dunes", technical_name: &"eolian sand"};
+	const SAND_SEA: Self = Self{biome_code: 9, enum_name: &"SandSea", common_name: &"sand dunes",
+		technical_name: &"eolian sand", icon: &"-", map_color: [255, 255, 127]};
 	/// const data for enum Biome::IceSheet
-	const ICE_SHEET: Self = Self{biome_code: 22, enum_name: &"IceSheet", common_name: &"ice sheet", technical_name: &"ice sheet"};
+	const ICE_SHEET: Self = Self{biome_code: 22, enum_name: &"IceSheet", common_name:
+	&"ice sheet", technical_name: &"ice sheet", icon: &"*", map_color: [255, 255, 255]};
 	/// const data for enum Biome::BoilingSea
-	const BOILING_SEA: Self = Self{biome_code: 23, enum_name: &"BoilingSea", common_name: &"boiling sea", technical_name: &"hydrothermal sea"};
+	const BOILING_SEA: Self = Self{biome_code: 23, enum_name: &"BoilingSea", common_name:
+	&"boiling sea", technical_name: &"hydrothermal sea", icon: &"≀", map_color: [125, 164, 176]};
 	/// const data for enum Biome::Moonscape
-	const MOONSCAPE: Self = Self{biome_code: 64, enum_name: &"Moonscape", common_name: &"moonscape", technical_name: &"regolith"};
+	const MOONSCAPE: Self = Self{biome_code: 64, enum_name: &"Moonscape", common_name:
+	&"moonscape", technical_name: &"regolith", icon: &"_", map_color: [155, 155, 155]};
 	/// const data for enum Biome::MagmaSea
-	const MAGMA_SEA: Self = Self{biome_code: 65, enum_name: &"MagmaSea", common_name: &"magma sea", technical_name: &"lava sea"};
+	const MAGMA_SEA: Self = Self{biome_code: 65, enum_name: &"MagmaSea", common_name:
+	&"magma sea", technical_name: &"lava sea", icon: &"£", map_color: [115, 0, 0]};
 	/// const data for enum Biome::CryogenSea
-	const CRYOGEN_SEA: Self = Self{biome_code: 66, enum_name: &"CryogenSea", common_name: &"cryogen sea", technical_name: &"cryogen sea"};
+	const CRYOGEN_SEA: Self = Self{biome_code: 66, enum_name: &"CryogenSea", common_name:
+	&"cryogen sea", technical_name: &"cryogen sea", icon: &"¢", map_color: [184, 236, 255]};
 	/// const data for enum Biome::GasGiant
-	const GAS_GIANT: Self = Self{biome_code: 67, enum_name: &"GasGiant", common_name: &"gas giant", technical_name: &"gas giant"};
+	const GAS_GIANT: Self = Self{biome_code: 67, enum_name: &"GasGiant", common_name:
+	&"gas giant", technical_name: &"gas giant", icon: &"§", map_color: [255, 207, 161]};
 	/// const data for enum Biome::Star
-	const STAR: Self = Self{biome_code: 68, enum_name: &"Star", common_name: &"star", technical_name: &"star"};
+	const STAR: Self = Self{biome_code: 68, enum_name: &"Star", common_name: &"star",
+		technical_name: &"star", icon: &"☼", map_color: [255, 255, 177]};
 	/// const data for enum Biome::NeutronStar
-	const NEUTRON_STAR: Self = Self{biome_code: 69, enum_name: &"NeutronStar", common_name: &"neutron star", technical_name: &"neutron star"};
+	const NEUTRON_STAR: Self = Self{biome_code: 69, enum_name: &"NeutronStar", common_name:
+	&"neutron star", technical_name: &"neutron star", icon: &"@", map_color: [113, 113, 78]};
 	/// const data for enum Biome::EventHorizon
-	const EVENT_HORIZON: Self = Self{biome_code: 70, enum_name: &"EventHorizon", common_name: &"black hole", technical_name: &"event horizon"};
+	const EVENT_HORIZON: Self = Self{biome_code: 70, enum_name: &"EventHorizon", common_name:
+	&"black hole", technical_name: &"event horizon", icon: &"Ø", map_color: [0, 0, 0]};
 	/// const data for enum Biome::Farmland
-	const FARMLAND: Self = Self{biome_code: 32, enum_name: &"Farmland", common_name: &"farmland", technical_name: &"farmland"};
+	const FARMLAND: Self = Self{biome_code: 32, enum_name: &"Farmland", common_name: &"farmland",
+		technical_name: &"farmland", icon: &"±", map_color: [122, 170, 98]};
 	/// const data for enum Biome::Urban
-	const URBAN: Self = Self{biome_code: 33, enum_name: &"Urban", common_name: &"urban", technical_name: &"urban"};
+	const URBAN: Self = Self{biome_code: 33, enum_name: &"Urban", common_name: &"urban",
+		technical_name: &"urban", icon: &"Π", map_color: [100, 100, 100]};
 	/// const data for enum Biome::Ruins
-	const RUINS: Self = Self{biome_code: 34, enum_name: &"Ruins", common_name: &"ruins", technical_name: &"ruins"};
+	const RUINS: Self = Self{biome_code: 34, enum_name: &"Ruins", common_name: &"ruins",
+		technical_name: &"ruins", icon: &"λ", map_color: [120, 134, 113]};
 	/// const data for enum Biome::PollutedWasteland
-	const POLLUTED_WASTELAND: Self = Self{biome_code: 35, enum_name: &"PollutedWasteland", common_name: &"toxic wasteland", technical_name: &"industrial barrens"};
+	const POLLUTED_WASTELAND: Self = Self{biome_code: 35, enum_name: &"PollutedWasteland",
+		common_name: &"toxic wasteland", technical_name: &"industrial barrens", icon: &"☢",
+		map_color: [255, 255, 0]};
 	/// const data for enum Biome::PollutedWastewater
-	const POLLUTED_WASTEWATER: Self = Self{biome_code: 36, enum_name: &"PollutedWastewater", common_name: &"toxic water", technical_name: &"hypoxic water"};
+	const POLLUTED_WASTEWATER: Self = Self{biome_code: 36, enum_name: &"PollutedWastewater",
+		common_name: &"toxic water", technical_name: &"hypoxic water", icon: &"☣", map_color:
+		[172, 255, 0]};
 	/// const data for enum Biome::Bioluminescent
-	const BIOLUMINESCENT: Self = Self{biome_code: 112, enum_name: &"Bioluminescent", common_name: &"permanent night", technical_name: &"bioluminescent flora"};
+	const BIOLUMINESCENT: Self = Self{biome_code: 112, enum_name: &"Bioluminescent", common_name:
+	&"permanent night", technical_name: &"bioluminescent flora", icon: &"☾", map_color: [46, 32,
+		128]};
 	/// const data for enum Biome::Dead
-	const DEAD: Self = Self{biome_code: 113, enum_name: &"Dead", common_name: &"dead land", technical_name: &"dead land"};
+	const DEAD: Self = Self{biome_code: 113, enum_name: &"Dead", common_name: &"dead land",
+		technical_name: &"dead land", icon: &"☠", map_color: [60, 60, 60]};
 	/// const data for enum Biome::MagicGarden
-	const MAGIC_GARDEN: Self = Self{biome_code: 114, enum_name: &"MagicGarden", common_name: &"magic garden", technical_name: &"magic garden"};
+	const MAGIC_GARDEN: Self = Self{biome_code: 114, enum_name: &"MagicGarden", common_name:
+	&"magic garden", technical_name: &"magic garden", icon: &"☥", map_color: [55, 255, 0]};
 	/// const data for enum Biome::ElementalChaos
-	const ELEMENTAL_CHAOS: Self = Self{biome_code: 115, enum_name: &"ElementalChaos", common_name: &"elemental chaos", technical_name: &"elemental chaos"};
+	const ELEMENTAL_CHAOS: Self = Self{biome_code: 115, enum_name: &"ElementalChaos",
+		common_name: &"elemental chaos", technical_name: &"elemental chaos", icon: &"☆",
+		map_color: [255, 110, 244]};
 	/// const data for enum Biome::Ooze
-	const OOZE: Self = Self{biome_code: 116, enum_name: &"Ooze", common_name: &"ooze", technical_name: &"giant slime"};
+	const OOZE: Self = Self{biome_code: 116, enum_name: &"Ooze", common_name: &"ooze",
+		technical_name: &"giant slime", icon: &"⚇", map_color: [136, 60, 196]};
 }
 /// This is a work-around for the Rust compiler not supporting Java-style enums
 /// of data constants. For a given reference to a Biome enum variant, it
@@ -348,6 +392,17 @@ impl Biome {
 	pub fn technical_name(&self) -> &'static str {
 		get_data(self).technical_name
 	}
+	/// Returns a unicode glyph to use as a symbol to represent this biome (not guaranteed to be
+	/// unique to each biome)
+	pub fn icon(&self) -> &'static str {
+		get_data(self).icon
+	}
+	/// Returns an RGB tuple for use in colorizing a map (map colors not guaranteed to be unique
+	/// to each biome)
+	pub fn map_color(&self) -> &[u8; 3] {
+		&get_data(self).map_color
+	}
+
 }
 impl From<u8> for Biome {
 	/// Converts from Plantabyte biome code (as u8) to the corresponding Biome enum
@@ -694,13 +749,13 @@ pub mod classifier {
 			[0.98553646f32, 0.67212886f32, 0.08356771f32, 0.3337861f32],
 			[0.9209426f32, 0.59560406f32, 0.15855226f32, 0.3750781f32],
 			[0.99228674f32, 0.67052644f32, 0.07420062f32, 0.49766815f32]],
-//// seasonalf32orest
+//// seasonal forest
 		[[0.82307386f32, 0.54830164f32, 0.28397045f32, 0.32422626f32],
 			[0.95406234f32, 0.68983954f32, 0.16054682f32, 0.29840717f32],
 			[0.5337313f32, 0.44197488f32, 0.4220576f32, 0.24119267f32],
 			[0.70596063f32, 0.5029748f32, 0.37620285f32, 0.26919958f32],
 			[0.65009725f32, 0.41467762f32, 0.53735024f32, 0.24624129f32]],
-//// needleleaff32orest
+//// needleleaf forest
 		[[0.8442506f32, 0.513412f32, 0.23853904f32, 0.31593102f32],
 			[0.4755671f32, 0.42182055f32, 0.32860836f32, 0.25947723f32],
 			[0.69879943f32, 0.5263777f32, 0.3583926f32, 0.24800086f32],
@@ -730,7 +785,7 @@ pub mod classifier {
 			[0.664666f32, 0.6056427f32, 0.46542227f32, 0.14238815f32],
 			[0.6938545f32, 0.43799615f32, 0.30913985f32, 0.2867542f32],
 			[0.8466273f32, 0.53237015f32, 0.44636855f32, 0.16200702f32]],
-//// sandsea
+//// sand sea
 		[[0.82119286f32, 0.48783484f32, 0.44511366f32, 0.10902377f32],
 			[0.9354581f32, 0.8444746f32, 0.28542006f32, 0.076657f32],
 			[0.75143087f32, 0.70467633f32, 0.602095f32, 0.09906711f32],
